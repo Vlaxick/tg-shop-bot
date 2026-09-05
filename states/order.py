@@ -11,3 +11,7 @@ class OrderState(StatesGroup):
     waiting_for_topup_amount = State()
     waiting_for_fragment_link = State()
     waiting_for_email = State()
+
+class ReviewState(StatesGroup):
+    waiting_for_review = State()
+    review_order_id = State()
