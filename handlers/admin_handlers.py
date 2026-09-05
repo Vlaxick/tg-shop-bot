@@ -251,3 +251,70 @@ async def process_admin_reply_message(message: Message, state: FSMContext, bot: 
             await bot.send_photo(target_user_id, photo=message.photo[-1].file_id, caption=caption, parse_mode="HTML")
     except Exception as e:
         await message.answer(f"❌ Помилка при відправці: {e}")
+
+@router.message(F.text == "📊 Статистика")
+async def admin_stats(message: Message):
+    if not is_admin(message.from_user.id): return
+    from database import db
+    stats = await db.get_global_stats()
+    
+    text = (
+        "📊 <b>Глобальна статистика магазину:</b>\n\n"
+        f"👥 Всього користувачів: <b>{stats['users_count']}</b>\n"
+        f"📦 Всього замовлень: <b>{stats['orders_count']}</b>\n"
+        f"✅ Успішних замовлень: <b>{stats['approved_orders']}</b>\n"
+        f"💰 Загальний дохід: <b>{stats['revenue']:.2f} ₴</b>"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+from states.admin import AdminState
+
+@router.message(F.text == "📢 Розсилка")
+async def admin_broadcast_start(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    await state.set_state(AdminState.waiting_for_broadcast_message)
+    await message.answer(
+        "📢 <b>Режим розсилки</b>\n\n"
+        "Надішліть повідомлення (текст, фото або відео), яке потрібно розіслати всім користувачам бота.\n\n"
+        "<i>Для скасування натисніть /cancel або оберіть будь-який інший пункт меню.</i>",
+        parse_mode="HTML"
+    )
+
+@router.message(AdminState.waiting_for_broadcast_message)
+async def admin_broadcast_send(message: Message, state: FSMContext, bot: Bot):
+    if not is_admin(message.from_user.id): return
+    
+    # If they pressed a menu button, cancel
+    if message.text in ["🛍 Відкриті замовлення", "💬 Відкриті тікети", "📊 Статистика", "📢 Розсилка"]:
+        await state.clear()
+        # let it propagate
+        return
+        
+    await state.clear()
+    
+    from database import db
+    users = await db.get_all_users_ids()
+    if not users:
+        await message.answer("❌ У базі немає користувачів для розсилки.")
+        return
+        
+    await message.answer(f"⏳ Розпочинаю розсилку для {len(users)} користувачів...")
+    
+    success = 0
+    failed = 0
+    import asyncio
+    
+    for uid in users:
+        try:
+            await message.copy_to(uid)
+            success += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05) # Prevent flood wait
+        
+    await message.answer(
+        "✅ <b>Розсилка завершена!</b>\n\n"
+        f"📨 Успішно доставлено: {success}\n"
+        f"🚫 Заблокували бота / Помилок: {failed}",
+        parse_mode="HTML"
+    )

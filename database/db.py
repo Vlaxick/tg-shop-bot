@@ -326,3 +326,36 @@ async def get_open_orders() -> list:
             ORDER BY o.created_at ASC
         ''')
         return await cursor.fetchall()
+
+async def get_global_stats() -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute('SELECT COUNT(*) FROM users')
+        users_count = (await cursor.fetchone())[0]
+        
+        cursor = await db.execute('SELECT COUNT(*) FROM orders')
+        orders_count = (await cursor.fetchone())[0]
+        
+        cursor = await db.execute("SELECT COUNT(*) FROM orders WHERE status = 'approved'")
+        approved_orders = (await cursor.fetchone())[0]
+        
+        cursor = await db.execute('''
+            SELECT SUM(p.price) 
+            FROM orders o 
+            JOIN products p ON o.product_id = p.id 
+            WHERE o.status = 'approved'
+        ''')
+        revenue_res = await cursor.fetchone()
+        revenue = revenue_res[0] if revenue_res and revenue_res[0] else 0.0
+        
+        return {
+            'users_count': users_count,
+            'orders_count': orders_count,
+            'approved_orders': approved_orders,
+            'revenue': revenue
+        }
+
+async def get_all_users_ids() -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute('SELECT user_id FROM users')
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
