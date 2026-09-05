@@ -146,6 +146,11 @@ async def update_order_status(order_id: int, status: str):
         await db.execute('UPDATE orders SET status = ? WHERE id = ?', (status, order_id))
         await db.commit()
 
+async def update_order_contact_info(order_id: int, contact_info: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('UPDATE orders SET contact_info = ? WHERE id = ?', (contact_info, order_id))
+        await db.commit()
+
 async def get_user_orders(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute('''

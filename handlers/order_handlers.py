@@ -46,6 +46,11 @@ def generate_order_hash() -> str:
 
 async def start_order_recipient_flow(message_or_callback, state: FSMContext, name: str, price: float, product_id: int, category_id: int):
     await state.update_data(product_id=product_id, price=price, product_name=name, category_id=category_id)
+    
+    if category_id in (3, 5):
+        await go_to_payment_method(message_or_callback, state, "Очікується пошта")
+        return
+        
     await state.set_state(OrderState.waiting_for_recipient)
     
     text = (
@@ -214,6 +219,15 @@ async def process_pay_balance(callback: CallbackQuery, state: FSMContext, bot: B
         return
         
     await db.update_order_status(order_id, "paid")
+    
+    if data.get('category_id') in (3, 5):
+        await state.update_data(paid_via_balance=True)
+        await state.set_state(OrderState.waiting_for_email)
+        text = "✅ <b>Оплата успішна!</b>\n\nБудь ласка, надайте пошту на яку потрібно підключити підписку:"
+        await edit_or_send_photo(callback, text, None)
+        await callback.answer()
+        return
+        
     await edit_or_send_photo(callback, "✅ <b>Оплата успішна!</b>\n\nКошти списано з балансу. Очікуйте на видачу товару.", get_back_to_main_keyboard())
     await state.clear()
     
@@ -333,6 +347,13 @@ async def process_payment_proof(message: Message, state: FSMContext, bot: Bot):
             await message.answer("❌ Помилка списання балансу! Будь ласка, зверніться до підтримки.")
             return
 
+    category_id = data.get('category_id')
+    if category_id in (3, 5):
+        await state.update_data(payment_photo_id=message.photo[-1].file_id)
+        await state.set_state(OrderState.waiting_for_email)
+        await message.answer("Будь ласка, надайте пошту на яку потрібно підключити підписку:")
+        return
+
     await message.answer("✅ <b>Дякуємо!</b>\nВаша оплата перевіряється адміністратором. Ви отримаєте сповіщення про зміну статусу.", parse_mode="HTML")
     await state.clear()
     
@@ -370,6 +391,74 @@ async def process_payment_proof(message: Message, state: FSMContext, bot: Bot):
             )
         except Exception as e:
             print(f"Failed to send to admin {admin_id}: {e}")
+
+@router.message(OrderState.waiting_for_email)
+async def process_email_for_sub(message: Message, state: FSMContext, bot: Bot):
+    email = message.text
+    data = await state.get_data()
+    order_id = data.get('order_id')
+    
+    await db.update_order_contact_info(order_id, email)
+    await message.answer("✅ <b>Дякуємо!</b>\nАдмін зв'яжеться з вами після перевірки та підключення.", parse_mode="HTML")
+    
+    order = await db.get_order(order_id)
+    paid_via_balance = data.get('paid_via_balance')
+    photo_id = data.get('payment_photo_id')
+    
+    from keyboards.inline import get_admin_order_keyboard, get_admin_action_keyboard
+    from config import ADMIN_IDS
+    
+    if paid_via_balance:
+        admin_text = (
+            f"💰 <b>Нова оплата з балансу! (Підписка)</b>\n"
+            f"🆔 Замовлення: #{order_id}\n"
+            f"👤 Користувач: @{order[2]}\n"
+            f"📧 Пошта: {order[3]}\n"
+            f"🛍 Товар: {order[4]}\n"
+            f"💵 Сума: {order[5]} ₴"
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_text, reply_markup=get_admin_order_keyboard(order_id, message.from_user.id), parse_mode="HTML")
+            except Exception:
+                pass
+    else:
+        balance_to_deduct = data.get('balance_to_deduct')
+        original_price = data.get('original_price')
+        
+        if balance_to_deduct and original_price:
+            op_str = f"{original_price:.2f}".rstrip('0').rstrip('.')
+            bd_str = f"{balance_to_deduct:.2f}".rstrip('0').rstrip('.')
+            o5_str = f"{order[5]:.2f}".rstrip('0').rstrip('.')
+            price_info = (
+                f"💰 Загальна ціна: <b>{op_str} ₴</b>\n"
+                f"💳 З них сплачено з балансу: <b>{bd_str} ₴</b>\n"
+                f"💵 Сплачено на карту: <b>{o5_str} ₴</b>"
+            )
+        else:
+            o5_str = f"{order[5]:.2f}".rstrip('0').rstrip('.')
+            price_info = f"💰 Сума (карта): <b>{o5_str} ₴</b>"
+            
+        admin_text = (
+            f"🚨 <b>Нове замовлення #{order_id} (Підписка)</b>\n\n"
+            f"👤 Клієнт: @{order[2]} (ID: {order[1]})\n"
+            f"📧 Пошта: {order[3]}\n"
+            f"🛒 Товар: {order[4]}\n"
+            f"{price_info}"
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_photo(
+                    chat_id=admin_id,
+                    photo=photo_id,
+                    caption=admin_text,
+                    reply_markup=get_admin_action_keyboard(order_id, order[1]),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+                
+    await state.clear()
 
 @router.callback_query(F.data.startswith("frag_"))
 async def process_fragment_selection(callback: CallbackQuery, state: FSMContext):
