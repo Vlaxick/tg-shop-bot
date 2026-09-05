@@ -50,10 +50,10 @@ async def start_order_recipient_flow(message_or_callback, state: FSMContext, nam
     
     text = (
         f"⭐ <b>Замовлення {name}</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
         f"📊 <b>Кількість/Назва:</b> {name}\n"
         f"💳 <b>До оплати:</b> {price} ₴\n\n"
-        "━━━━━━━━━━━━━━━━━━\n"
+
         "👤 <b>Для кого купляємо?</b>"
     )
     
@@ -79,12 +79,12 @@ async def process_stars_custom(callback: CallbackQuery, state: FSMContext):
     from keyboards.inline import get_back_to_main_keyboard
     text = (
         "⭐ <b>Купівля Telegram Stars</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
         "🥷 <b>Ціна:</b> ~0.75 ₴ за 1 зірку\n"
         "✨ <b>Комісія:</b> 15 ₴ за транзакцію\n\n"
         "📊 <b>Мін. замовлення:</b> 50 Stars\n"
         "🎱 <b>Макс. замовлення:</b> 100,000 Stars\n\n"
-        "━━━━━━━━━━━━━━━━━━\n"
+
         "🖍 <b>Введіть кількість Stars:</b>"
     )
     await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
@@ -177,14 +177,14 @@ async def go_to_payment_method(message_or_callback, state: FSMContext, contact_i
     
     text = (
         "💳 <b>Спосіб оплати</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
         f"🆔 <b>Замовлення:</b> #{order_hash}\n"
         f"🛍 <b>Товар:</b> {product_name}\n"
         f"👤 <b>Отримувач:</b> {contact_info}\n\n"
         "📈 <b>Суми до оплати:</b>\n"
         f"💳 Картка: {price} ₴\n"
         "💎 Крипта: USDT / TON / BTC / ETH\n\n"
-        "━━━━━━━━━━━━━━━━━━\n"
+
         "👇 <b>Виберіть зручний спосіб:</b>"
     )
     user_data = await db.get_user(user.id)
@@ -284,7 +284,7 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext):
     
     text = (
         "🖤 <b>Оплата через Monobank</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
         f"🆔 <b>Замовлення:</b> #{order_hash}\n"
         f"🛍 <b>Товар:</b> {product_name}\n"
         f"👤 <b>Отримувач:</b> {contact_info}\n"
@@ -377,7 +377,7 @@ async def process_fragment_selection(callback: CallbackQuery, state: FSMContext)
     
     text = (
         "🔗 <b>Замовлення з Fragment</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
     )
     if item_type == "anon":
         text += "Ви обрали <b>Анонімний номер (+888)</b>.\n\n"

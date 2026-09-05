@@ -138,7 +138,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
         await state.set_state(OrderState.waiting_for_fragment_link)
         text = (
             "🎁 <b>Telegram Подарунки / NFT</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
+
             "Оберіть один із стандартних подарунків нижче, або надішліть посилання (скріншот) на будь-який унікальний подарунок чи юзернейм з Fragment.\n\n"
             "👇 <b>Оберіть подарунок кнопкою або кидайте лінк:</b>\n\n"
             "<i>(Після отримання запиту з вами зв'яжеться адміністратор для оформлення)</i>"
@@ -324,7 +324,7 @@ async def process_referrals(callback: CallbackQuery):
     
     text = (
         "🎁 <b>Реферальна програма та Баланс</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+
         f"💰 <b>Ваш баланс:</b> {balance} ₴\n\n"
         "🤝 <b>Запрошуйте друзів та заробляйте:</b>\n"
         "• <b>50%</b> від суми першої покупки вашого друга!\n"
@@ -351,9 +351,10 @@ async def process_casino_menu(callback: CallbackQuery):
     text = (
         "🎰 <b>Вітаємо в Казино!</b>\n\n"
         "Правила прості: ви робите ставку і крутите слоти.\n"
-        "Виграшні комбінації (3 в ряд):\n"
-        "🍒🍒🍒 або 🍋🍋🍋 = <b>x5</b> від ставки\n"
-        "💎💎💎 = <b>Джекпот (x10)</b>\n\n"
+        "Виграшні комбінації:\n"
+        "💎💎💎 = <b>x5</b> (Джекпот)\n"
+        "🍒🍒🍒 = <b>x2</b> (Великий куш)\n"
+        "🍎🍎🍎, 🍇🍇🍇, 🔔🔔🔔 = <b>x1.5</b> (Міні-виграш)\n\n"
         f"Ваш баланс: <b>{b_str} ₴</b>\n"
         "Оберіть суму ставки:"
     )
@@ -374,28 +375,63 @@ async def process_casino_bet(callback: CallbackQuery, bot: Bot):
         await callback.answer("❌ Недостатньо коштів на балансі!", show_alert=True)
         return
         
-    await callback.message.delete()
-    msg = await callback.message.answer_dice(emoji="🎰")
+    slots = ["🍎", "🍋", "🍒", "💎", "🔔", "🍇"]
+    import random
     
-    # Value 1, 22, 43 is x5. Value 64 is x10.
-    # We must wait a few seconds for the animation
-    await asyncio.sleep(2.0)
-    
-    win_amount = 0
-    if msg.dice.value == 64: # 777
-        win_amount = bet * 10
-        await bot.send_message(user_id, f"🎉 <b>ДЖЕКПОТ!</b> Ви виграли <b>{win_amount} ₴</b>!", parse_mode="HTML")
-    elif msg.dice.value in (1, 22, 43):
-        win_amount = bet * 5
-        await bot.send_message(user_id, f"🎊 <b>ВИГРАШ!</b> Ви виграли <b>{win_amount} ₴</b>!", parse_mode="HTML")
-    else:
-        await bot.send_message(user_id, f"😔 На жаль, ви програли. Спробуйте ще раз!")
+    # Animation
+    for i in range(3):
+        f1, f2, f3 = random.choice(slots), random.choice(slots), random.choice(slots)
+        try:
+            await callback.message.edit_caption(
+                caption=f"🎰 <b>Ставка: {bet} ₴</b>\n\n     [ {f1} | {f2} | {f3} ]\n\n🔄 <i>Крутимо слоти... ({3-i})</i>", 
+                parse_mode="HTML"
+            )
+        except:
+            pass
+        await asyncio.sleep(0.5)
         
+    # Final outcome
+    rand = random.random()
+    if rand < 0.02: # 2% chance
+        final_slots = ["💎", "💎", "💎"]
+        multiplier = 5
+        text_res = f"🎉 <b>ДЖЕКПОТ!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x5)!"
+    elif rand < 0.10: # 8% chance
+        final_slots = ["🍒", "🍒", "🍒"]
+        multiplier = 2
+        text_res = f"🎊 <b>ВИГРАШ!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x2)!"
+    elif rand < 0.35: # 25% chance
+        f = random.choice(["🍎", "🍇", "🔔"])
+        final_slots = [f, f, f]
+        multiplier = 1.5
+        text_res = f"👍 <b>Непогано!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x1.5)!"
+    else: # 65% chance
+        final_slots = [random.choice(slots), random.choice(slots), random.choice(slots)]
+        while final_slots[0] == final_slots[1] == final_slots[2]:
+            final_slots[2] = random.choice(slots)
+        multiplier = 0
+        text_res = f"😔 На жаль, ви програли <b>{bet} ₴</b>. Спробуйте ще раз!"
+        
+    win_amount = bet * multiplier
     if win_amount > 0:
         await db.add_balance(user_id, win_amount)
         
-    # Send menu back
-    await process_casino_menu(callback)
+    user = await db.get_user(user_id)
+    balance = user[3] if user else 0.0
+    
+    final_caption = (
+        f"🎰 <b>Результат гри</b>\n\n"
+        f"     [ {final_slots[0]} | {final_slots[1]} | {final_slots[2]} ]\n\n"
+        f"{text_res}\n\n"
+        f"💳 Ваш баланс: <b>{balance:.2f} ₴</b>"
+    )
+    
+    from keyboards.inline import get_casino_keyboard
+    try:
+        await callback.message.edit_caption(caption=final_caption, reply_markup=get_casino_keyboard(), parse_mode="HTML")
+    except:
+        pass
+    await callback.answer()
 
 
 @router.callback_query(F.data == "create_gift")
