@@ -318,3 +318,112 @@ async def admin_broadcast_send(message: Message, state: FSMContext, bot: Bot):
         f"🚫 Заблокували бота / Помилок: {failed}",
         parse_mode="HTML"
     )
+
+from states.admin import AdminProductState
+
+@router.message(F.text == "📦 Управління товарами")
+async def admin_product_manager(message: Message):
+    if not is_admin(message.from_user.id): return
+    from keyboards.inline import get_admin_product_manager_keyboard
+    await message.answer("📦 <b>Менеджер товарів</b>\nОберіть дію:", reply_markup=get_admin_product_manager_keyboard(), parse_mode="HTML")
+
+@router.callback_query(F.data == "admin_cancel_product")
+async def admin_cancel_product(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id): return
+    await state.clear()
+    await callback.message.edit_text("❌ Дію скасовано.")
+    await callback.answer()
+
+# --- ADD CATEGORY ---
+@router.callback_query(F.data == "admin_add_category")
+async def admin_add_category_start(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id): return
+    await state.set_state(AdminProductState.waiting_for_new_category_name)
+    await callback.message.edit_text("Введіть назву нової категорії:")
+    await callback.answer()
+
+@router.message(AdminProductState.waiting_for_new_category_name)
+async def admin_add_category_save(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    from database import db
+    await db.add_category(message.text)
+    await state.clear()
+    await message.answer(f"✅ Категорію <b>{message.text}</b> додано!", parse_mode="HTML")
+
+# --- ADD PRODUCT ---
+@router.callback_query(F.data == "admin_add_product")
+async def admin_add_product_start(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id): return
+    from database import db
+    from keyboards.inline import get_admin_categories_selection_keyboard
+    categories = await db.get_categories()
+    if not categories:
+        await callback.message.edit_text("❌ Спочатку додайте хоча б одну категорію.")
+        return
+    await state.set_state(AdminProductState.waiting_for_product_category)
+    await callback.message.edit_text("Оберіть категорію для нового товару:", reply_markup=get_admin_categories_selection_keyboard(categories))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("admin_sel_cat_"), AdminProductState.waiting_for_product_category)
+async def admin_sel_cat(callback: CallbackQuery, state: FSMContext):
+    cat_id = int(callback.data.split("_")[3])
+    await state.update_data(new_prod_cat_id=cat_id)
+    await state.set_state(AdminProductState.waiting_for_product_name)
+    await callback.message.edit_text("Введіть <b>назву</b> товару:", parse_mode="HTML")
+    await callback.answer()
+
+@router.message(AdminProductState.waiting_for_product_name)
+async def admin_add_product_name(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    await state.update_data(new_prod_name=message.text)
+    await state.set_state(AdminProductState.waiting_for_product_desc)
+    await message.answer("Введіть <b>опис</b> товару:", parse_mode="HTML")
+
+@router.message(AdminProductState.waiting_for_product_desc)
+async def admin_add_product_desc(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    await state.update_data(new_prod_desc=message.text)
+    await state.set_state(AdminProductState.waiting_for_product_price)
+    await message.answer("Введіть <b>ціну</b> товару (число, наприклад 150 або 299.99):", parse_mode="HTML")
+
+@router.message(AdminProductState.waiting_for_product_price)
+async def admin_add_product_price(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    try:
+        price = float(message.text.replace(",", "."))
+    except ValueError:
+        await message.answer("❌ Будь ласка, введіть коректне число.")
+        return
+        
+    data = await state.get_data()
+    from database import db
+    await db.add_product(
+        category_id=data['new_prod_cat_id'],
+        name=data['new_prod_name'],
+        description=data['new_prod_desc'],
+        price=price
+    )
+    await state.clear()
+    await message.answer(f"✅ Товар <b>{data['new_prod_name']}</b> за {price}₴ успішно додано!", parse_mode="HTML")
+
+# --- DELETE PRODUCT ---
+@router.callback_query(F.data == "admin_delete_product")
+async def admin_delete_product_start(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id): return
+    from database import db
+    from keyboards.inline import get_admin_products_deletion_keyboard
+    products = await db.get_all_products()
+    if not products:
+        await callback.message.edit_text("Немає товарів для видалення.")
+        return
+    await callback.message.edit_text("Оберіть товар для <b>ВИДАЛЕННЯ</b>:", reply_markup=get_admin_products_deletion_keyboard(products), parse_mode="HTML")
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("admin_del_prod_"))
+async def admin_del_prod_exec(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id): return
+    prod_id = int(callback.data.split("_")[3])
+    from database import db
+    await db.delete_product(prod_id)
+    await callback.message.edit_text(f"✅ Товар #{prod_id} видалено.")
+    await callback.answer()

@@ -359,3 +359,26 @@ async def get_all_users_ids() -> list:
         cursor = await db.execute('SELECT user_id FROM users')
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
+
+async def add_category(name: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('INSERT INTO categories (name) VALUES (?)', (name,))
+        await db.commit()
+
+async def add_product(category_id: int, name: str, description: str, price: float):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            'INSERT INTO products (category_id, name, description, price) VALUES (?, ?, ?, ?)',
+            (category_id, name, description, price)
+        )
+        await db.commit()
+
+async def delete_product(product_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('DELETE FROM products WHERE id = ?', (product_id,))
+        await db.commit()
+
+async def get_all_products() -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute('SELECT id, name FROM products ORDER BY id DESC')
+        return await cursor.fetchall()

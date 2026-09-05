@@ -245,3 +245,25 @@ def get_ticket_admin_active_keyboard(order_id: int) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="⬅️ Вийти з режиму відповіді", callback_data="exit_admin_reply"))
     builder.row(InlineKeyboardButton(text="❌ Закрити тікет", callback_data=f"close_ticket_admin_{order_id}"))
     return builder.as_markup()
+
+def get_admin_product_manager_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="➕ Додати категорію", callback_data="admin_add_category"))
+    builder.row(InlineKeyboardButton(text="➕ Додати товар", callback_data="admin_add_product"))
+    builder.row(InlineKeyboardButton(text="🗑 Видалити товар", callback_data="admin_delete_product"))
+    return builder.as_markup()
+
+def get_admin_categories_selection_keyboard(categories: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for cat in categories:
+        builder.row(InlineKeyboardButton(text=cat[1], callback_data=f"admin_sel_cat_{cat[0]}"))
+    builder.row(InlineKeyboardButton(text="❌ Скасувати", callback_data="admin_cancel_product"))
+    return builder.as_markup()
+
+def get_admin_products_deletion_keyboard(products: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for prod in products:
+        short_name = prod[1][:30] + "..." if len(prod[1]) > 30 else prod[1]
+        builder.row(InlineKeyboardButton(text=f"🗑 {short_name}", callback_data=f"admin_del_prod_{prod[0]}"))
+    builder.row(InlineKeyboardButton(text="❌ Скасувати", callback_data="admin_cancel_product"))
+    return builder.as_markup()
