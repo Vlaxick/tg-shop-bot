@@ -179,18 +179,53 @@ async def process_product(callback: CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data == "my_orders")
-async def process_my_orders(callback: CallbackQuery):
+async def process_my_orders_first_page(callback: CallbackQuery):
+    await process_my_orders_page(callback, 1)
+
+@router.callback_query(F.data.startswith("my_orders_page_"))
+async def process_my_orders_page_handler(callback: CallbackQuery):
+    page = int(callback.data.split("_")[3])
+    await process_my_orders_page(callback, page)
+
+async def process_my_orders_page(callback: CallbackQuery, page: int):
     orders = await db.get_user_orders(callback.from_user.id)
     if not orders:
         text = "У вас ще немає замовлень. 😔"
         markup = get_back_to_main_keyboard()
-    else:
-        text = "📦 <b>Ваші замовлення:</b>\n\nОберіть замовлення для деталей:"
-        from keyboards.inline import get_user_orders_keyboard
-        markup = get_user_orders_keyboard(orders[:10])
+        await edit_or_send_photo(callback, text, markup)
+        return
+
+    per_page = 4
+    total_pages = (len(orders) + per_page - 1) // per_page
+    if page < 1: page = 1
+    if page > total_pages: page = total_pages
+    
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    current_orders = orders[start_idx:end_idx]
+    
+    text = f"📦 <b>Ваші замовлення (Сторінка {page}/{total_pages}):</b>\n\n"
+    
+    for idx, order in enumerate(current_orders):
+        order_id, name, status, created_at, price = order
+        status_emoji = "⏳ В обробці" if status == "pending" else "✅ Підтверджено" if status == "approved" else "❌ Відхилено"
+        emoji_num = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"][idx]
+        
+        text += f"{emoji_num} <b>Замовлення #{order_id}</b>\n"
+        text += f"🛍 Товар: {name}\n"
+        text += f"💵 Ціна: {price} ₴\n"
+        text += f"📊 Статус: {status_emoji}\n\n"
+        
+    text += "Оберіть замовлення для деталей та зв'язку з підтримкою:"
+    
+    from keyboards.inline import get_user_orders_paginated_keyboard
+    markup = get_user_orders_paginated_keyboard(orders, page, per_page)
     
     await edit_or_send_photo(callback, text, markup)
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 @router.callback_query(F.data.startswith("view_order_"))
 async def process_view_order(callback: CallbackQuery):
@@ -214,42 +249,62 @@ async def process_view_order(callback: CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data.startswith("support_order_"))
-async def process_support_order(callback: CallbackQuery, state: FSMContext):
+async def process_support_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
     order_id = int(callback.data.split("_")[2])
     from states.support import SupportState
-    await state.set_state(SupportState.waiting_for_message)
+    await state.set_state(SupportState.user_in_ticket)
     await state.update_data(support_order_id=order_id)
     
+    from keyboards.inline import get_ticket_user_keyboard
     text = (
-        f"💬 <b>Підтримка (Замовлення #{order_id})</b>\n\n"
-        f"Будь ласка, напишіть ваше повідомлення для адміністратора.\n"
-        f"Опишіть проблему максимально детально. Ви можете надіслати текст або фото."
+        f"💬 <b>Чат з підтримкою (Замовлення #{order_id})</b>\n\n"
+        f"Ви підключені до живого чату з адміністратором. Всі ваші повідомлення будуть пересилатися йому.\n"
+        f"Опишіть проблему максимально детально. Ви можете надсилати текст або фото."
     )
+    await edit_or_send_photo(callback, text, get_ticket_user_keyboard())
+    await callback.answer()
+
+from states.support import SupportState
+@router.callback_query(F.data == "close_ticket_user", SupportState.user_in_ticket)
+async def close_ticket_user(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    order_id = data.get('support_order_id')
+    await state.clear()
+    
+    from config import ADMIN_IDS
+    admin_text = f"⚠️ Користувач @{callback.from_user.username} закрив тікет #{order_id}."
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, admin_text)
+        except:
+            pass
+            
+    text = "✅ Чат завершено."
     await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
     await callback.answer()
 
 from states.support import SupportState
-@router.message(SupportState.waiting_for_message)
-async def process_support_message(message: Message, state: FSMContext, bot: Bot):
+@router.message(SupportState.user_in_ticket)
+async def process_user_ticket_message(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     order_id = data.get('support_order_id')
     
     from config import ADMIN_IDS
-    from keyboards.inline import get_admin_reply_keyboard
+    from keyboards.inline import get_ticket_admin_keyboard
     
     user_info = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
-    admin_text = f"🚨 <b>Нове звернення в підтримку!</b>\n\n👤 Від: {user_info}\n🆔 Замовлення: #{order_id}\n\nПовідомлення:"
+    admin_text = f"📩 <b>Тікет #{order_id}</b> | Від: {user_info}\n\n"
     
     for admin_id in ADMIN_IDS:
         try:
             await bot.send_message(admin_id, admin_text, parse_mode="HTML")
-            await message.copy_to(admin_id) # Using copy_to is cleaner than forward
-            await bot.send_message(admin_id, "👇 Натисніть кнопку, щоб відповісти:", reply_markup=get_admin_reply_keyboard(message.from_user.id, order_id))
+            await message.copy_to(admin_id)
+            await bot.send_message(admin_id, "👇", reply_markup=get_ticket_admin_keyboard(message.from_user.id, order_id))
         except Exception:
             pass
             
-    await state.clear()
-    await message.answer("✅ Ваше повідомлення успішно надіслано адміністратору. Очікуйте на відповідь!", reply_markup=get_back_to_main_keyboard())
+    # We don't clear state! Ticket stays open!
+    # No need to confirm every message, user can just keep typing
 
 @router.callback_query(F.data == "language")
 async def process_language(callback: CallbackQuery):

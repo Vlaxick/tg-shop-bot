@@ -156,24 +156,50 @@ def get_casino_keyboard() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu", style="danger"))
     return builder.as_markup()
 
-def get_user_orders_keyboard(orders: list) -> InlineKeyboardMarkup:
+def get_user_orders_paginated_keyboard(orders: list, page: int = 1, per_page: int = 4) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for order in orders:
-        order_id, name, status, created_at, price = order
-        status_emoji = "⏳" if status == "pending" else "✅" if status == "approved" else "❌"
-        # Truncate name if too long
-        short_name = name[:20] + "..." if len(name) > 20 else name
-        builder.row(InlineKeyboardButton(text=f"{status_emoji} #{order_id} | {short_name}", callback_data=f"view_order_{order_id}"))
-    builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu", style="danger"))
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    current_orders = orders[start_idx:end_idx]
+    
+    # 1. Order buttons
+    for idx, order in enumerate(current_orders):
+        order_id = order[0]
+        emoji_num = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"][idx]
+        builder.row(InlineKeyboardButton(text=f"{emoji_num} Замовлення #{order_id}", callback_data=f"view_order_{order_id}"))
+        
+    # 2. Pagination buttons
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️ Попередня", callback_data=f"my_orders_page_{page-1}"))
+    if end_idx < len(orders):
+        nav_buttons.append(InlineKeyboardButton(text="Наступна ➡️", callback_data=f"my_orders_page_{page+1}"))
+    
+    if nav_buttons:
+        builder.row(*nav_buttons)
+        
+    # 3. Main menu
+    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
     return builder.as_markup()
 
 def get_order_details_keyboard(order_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💬 Зв'язатись з підтримкою", callback_data=f"support_order_{order_id}"))
-    builder.row(InlineKeyboardButton(text="⬅️ Назад до замовлень", callback_data="my_orders", style="danger"))
+    builder.row(InlineKeyboardButton(text="⬅️ Назад до замовлень", callback_data="my_orders"))
     return builder.as_markup()
 
-def get_admin_reply_keyboard(user_id: int, order_id: int) -> InlineKeyboardMarkup:
+def get_ticket_user_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="❌ Завершити чат", callback_data="close_ticket_user"))
+    return builder.as_markup()
+
+def get_ticket_admin_keyboard(user_id: int, order_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💬 Відповісти", callback_data=f"admin_reply_{user_id}_{order_id}"))
+    return builder.as_markup()
+
+def get_ticket_admin_active_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="⬅️ Вийти з режиму відповіді", callback_data="exit_admin_reply"))
+    builder.row(InlineKeyboardButton(text="❌ Закрити тікет", callback_data=f"close_ticket_admin_{order_id}"))
     return builder.as_markup()

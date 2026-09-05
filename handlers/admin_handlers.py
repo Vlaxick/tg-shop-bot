@@ -93,7 +93,7 @@ from aiogram.types import Message
 from states.support import SupportState
 
 @router.callback_query(F.data.startswith("admin_reply_"))
-async def process_admin_reply_callback(callback: CallbackQuery, state: FSMContext):
+async def process_admin_reply_callback(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if not is_admin(callback.from_user.id):
         await callback.answer("У вас немає прав для цієї дії.", show_alert=True)
         return
@@ -102,13 +102,47 @@ async def process_admin_reply_callback(callback: CallbackQuery, state: FSMContex
     target_user_id = int(data_parts[2])
     order_id = int(data_parts[3])
     
-    await state.set_state(SupportState.waiting_for_reply)
+    await state.set_state(SupportState.admin_in_ticket)
     await state.update_data(reply_user_id=target_user_id, reply_order_id=order_id)
     
-    await callback.message.answer(f"Напишіть вашу відповідь для користувача (Замовлення #{order_id}):\n(Текст або фото/відео)")
+    from keyboards.inline import get_ticket_admin_active_keyboard
+    await bot.send_message(
+        callback.from_user.id, 
+        f"✅ Ви увійшли в режим чату з користувачем по замовленню #{order_id}.\nВсі ваші повідомлення будуть пересилатися йому.",
+        reply_markup=get_ticket_admin_active_keyboard(order_id)
+    )
     await callback.answer()
 
-@router.message(SupportState.waiting_for_reply)
+@router.callback_query(F.data == "exit_admin_reply", SupportState.admin_in_ticket)
+async def exit_admin_reply(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("Ви вийшли з режиму відповіді.")
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("close_ticket_admin_"), SupportState.admin_in_ticket)
+async def close_ticket_admin(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    order_id = int(callback.data.split("_")[3])
+    data = await state.get_data()
+    target_user_id = data.get('reply_user_id')
+    
+    await state.clear()
+    await callback.message.edit_text(f"Тікет #{order_id} закрито.")
+    
+    # Notify user that ticket was closed by admin
+    if target_user_id:
+        from states.support import SupportState
+        user_state = bot.dispatcher.fsm.resolve_context(bot, callback.message.chat.id, target_user_id)
+        # We can just send a message, we can't reliably clear the user's state from admin handler in v3 without storage.
+        # But wait, aiogram 3 FSM doesn't allow easy cross-user state clear. We just tell them to use their close button if they send a msg.
+        # Actually, let's just send the message. 
+        from keyboards.inline import get_back_to_main_keyboard
+        try:
+            await bot.send_message(target_user_id, "⚠️ Адміністратор завершив цей чат.", reply_markup=get_back_to_main_keyboard())
+        except:
+            pass
+    await callback.answer()
+
+@router.message(SupportState.admin_in_ticket)
 async def process_admin_reply_message(message: Message, state: FSMContext, bot: Bot):
     if not is_admin(message.from_user.id):
         return
@@ -117,15 +151,11 @@ async def process_admin_reply_message(message: Message, state: FSMContext, bot: 
     target_user_id = data.get('reply_user_id')
     order_id = data.get('reply_order_id')
     
-    from keyboards.inline import get_back_to_main_keyboard
-    user_text = f"💬 <b>Відповідь від підтримки</b> (Замовлення #{order_id}):"
+    user_text = f"💬 <b>Підтримка</b> (Замовлення #{order_id}):\n\n"
     
     try:
         await bot.send_message(target_user_id, user_text, parse_mode="HTML")
         await message.copy_to(target_user_id)
-        await bot.send_message(target_user_id, "<i>Щоб відповісти, перейдіть в Мої замовлення та знову натисніть Зв'язатись з підтримкою.</i>", reply_markup=get_back_to_main_keyboard(), parse_mode="HTML")
-        await message.answer("✅ Відповідь успішно надіслана користувачу!")
+        # Message sent! No need to clear state because we are in live chat.
     except Exception as e:
         await message.answer(f"❌ Помилка при відправці: {e}")
-        
-    await state.clear()
