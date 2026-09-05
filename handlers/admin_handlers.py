@@ -130,11 +130,6 @@ async def close_ticket_admin(callback: CallbackQuery, state: FSMContext, bot: Bo
     
     # Notify user that ticket was closed by admin
     if target_user_id:
-        from states.support import SupportState
-        user_state = bot.dispatcher.fsm.resolve_context(bot, callback.message.chat.id, target_user_id)
-        # We can just send a message, we can't reliably clear the user's state from admin handler in v3 without storage.
-        # But wait, aiogram 3 FSM doesn't allow easy cross-user state clear. We just tell them to use their close button if they send a msg.
-        # Actually, let's just send the message. 
         from keyboards.inline import get_back_to_main_keyboard
         try:
             await bot.send_message(target_user_id, "⚠️ Адміністратор завершив цей чат.", reply_markup=get_back_to_main_keyboard())

@@ -164,9 +164,11 @@ def get_user_orders_paginated_keyboard(orders: list, page: int = 1, per_page: in
     
     # 1. Order buttons
     for idx, order in enumerate(current_orders):
-        order_id = order[0]
-        emoji_num = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"][idx]
-        builder.row(InlineKeyboardButton(text=f"{emoji_num} Замовлення #{order_id}", callback_data=f"view_order_{order_id}"))
+        order_id, name, status, created_at, price = order
+        status_emoji = "⏳" if status == "pending" else "✅" if status == "approved" else "❌"
+        short_name = name[:20] + "..." if len(name) > 20 else name
+        btn_text = f"{status_emoji} #{order_id} | {short_name} | {price}₴"
+        builder.row(InlineKeyboardButton(text=btn_text, callback_data=f"view_order_{order_id}"))
         
     # 2. Pagination buttons
     nav_buttons = []

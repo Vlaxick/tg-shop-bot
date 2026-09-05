@@ -205,17 +205,6 @@ async def process_my_orders_page(callback: CallbackQuery, page: int):
     current_orders = orders[start_idx:end_idx]
     
     text = f"📦 <b>Ваші замовлення (Сторінка {page}/{total_pages}):</b>\n\n"
-    
-    for idx, order in enumerate(current_orders):
-        order_id, name, status, created_at, price = order
-        status_emoji = "⏳ В обробці" if status == "pending" else "✅ Підтверджено" if status == "approved" else "❌ Відхилено"
-        emoji_num = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"][idx]
-        
-        text += f"{emoji_num} <b>Замовлення #{order_id}</b>\n"
-        text += f"🛍 Товар: {name}\n"
-        text += f"💵 Ціна: {price} ₴\n"
-        text += f"📊 Статус: {status_emoji}\n\n"
-        
     text += "Оберіть замовлення для деталей та зв'язку з підтримкою:"
     
     from keyboards.inline import get_user_orders_paginated_keyboard
