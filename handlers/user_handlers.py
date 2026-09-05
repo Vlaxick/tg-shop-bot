@@ -161,14 +161,7 @@ async def process_product(callback: CallbackQuery):
     product_id = int(callback.data.split("_")[1])
     product = await db.get_product(product_id)
     if product:
-        prod_id, name, description, price = product
-        
-        # Get category_id to provide a working Back button
-        # Actually we didn't fetch category_id in get_product, let's fix db.py or handle it
-        # For simplicity we'll just parse the category ID from the db if we need to, 
-        # or we can modify db.get_product to return category_id. 
-        # Let's assume we can fetch it, or we just rely on get_product returning category_id.
-        # Actually I didn't include category_id in get_product SELECT. I will update db.py in a bit.
+        prod_id, category_id, name, description, price = product
         
         text = (
             f"🛒 <b>Товар:</b> {name}\n\n"
@@ -176,16 +169,6 @@ async def process_product(callback: CallbackQuery):
             f"💰 <b>Ціна:</b> {price} ₴"
         )
         
-        # Let's do a trick: we don't have category_id here easily without another query, 
-        # but for the "Back" button we can just go to the shop if we don't have it, 
-        # or we fetch it. I'll fetch it from the DB.
-        
-        import aiosqlite
-        async with aiosqlite.connect(db.DB_PATH) as _db:
-            async with _db.execute('SELECT category_id FROM products WHERE id = ?', (product_id,)) as cursor:
-                res = await cursor.fetchone()
-                category_id = res[0] if res else 0
-
         await edit_or_send_photo(
             callback,
             text, 

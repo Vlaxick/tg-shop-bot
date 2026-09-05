@@ -106,7 +106,7 @@ async def get_products_by_category(category_id: int):
 
 async def get_product(product_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute('SELECT id, name, description, price FROM products WHERE id = ?', (product_id,)) as cursor:
+        async with db.execute('SELECT id, category_id, name, description, price FROM products WHERE id = ?', (product_id,)) as cursor:
             return await cursor.fetchone()
 
 async def get_or_create_custom_product(name: str, price: float, category_id: int = 1) -> int:

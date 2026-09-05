@@ -139,8 +139,10 @@ async def process_buy_button(callback: CallbackQuery, state: FSMContext):
     if not product:
         await callback.answer("Товар не знайдено", show_alert=True)
         return
-    category_id = 4 # Default to gifts if unknown
-    await start_order_recipient_flow(callback, state, product[1], product[3], product_id, category_id)
+    category_id = product[1]
+    name = product[2]
+    price = product[4]
+    await start_order_recipient_flow(callback, state, name, price, product_id, category_id)
 
 @router.callback_query(F.data == "recipient_self", OrderState.waiting_for_recipient)
 async def process_recipient_self(callback: CallbackQuery, state: FSMContext):
