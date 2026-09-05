@@ -99,7 +99,8 @@ def get_payment_method_keyboard(price: float, category_id: int, balance: float =
     elif balance > 0 and not is_partial:
         builder.row(InlineKeyboardButton(text=f"💰 Списати баланс ({balance_str} ₴)", callback_data="pay_balance_partial"))
     
-    builder.row(InlineKeyboardButton(text=f"🖤 Monobank (Apple Pay) — {price_str} ₴", callback_data="pay_card"))
+    builder.row(InlineKeyboardButton(text=f"🖤 Monobank (Apple / Google Pay) — {price_str} ₴", callback_data="pay_mono"))
+    builder.row(InlineKeyboardButton(text=f"💳 Переказ на карту — {price_str} ₴", callback_data="pay_card"))
     builder.row(InlineKeyboardButton(text="💎 Крипта (CryptoBot)", callback_data="pay_crypto"))
     
     if not back_cb:
@@ -108,10 +109,16 @@ def get_payment_method_keyboard(price: float, category_id: int, balance: float =
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=back_cb, style="danger"))
     return builder.as_markup()
 
-def get_payment_details_keyboard(order_id: str, payment_url: str) -> InlineKeyboardMarkup:
+def get_mono_payment_keyboard(order_id: str, payment_url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💸 Оплатити (Apple/Google Pay)", url=payment_url))
-    builder.row(InlineKeyboardButton(text="💳 Скопіювати картку", copy_text=CopyTextButton(text="4441 1110 1411 3819")))
+    builder.row(InlineKeyboardButton(text="✅ Я оплатив", callback_data=f"paid_{order_id}", style="success"))
+    builder.row(InlineKeyboardButton(text="❌ Скасувати", callback_data="main_menu", style="danger"))
+    return builder.as_markup()
+
+def get_card_payment_keyboard(order_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💳 Скопіювати номер картки", copy_text=CopyTextButton(text="4441 1110 1411 3819")))
     builder.row(InlineKeyboardButton(text="✅ Я оплатив", callback_data=f"paid_{order_id}", style="success"))
     builder.row(InlineKeyboardButton(text="❌ Скасувати", callback_data="main_menu", style="danger"))
     return builder.as_markup()

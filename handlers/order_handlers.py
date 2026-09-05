@@ -282,8 +282,8 @@ async def process_pay_balance_partial(callback: CallbackQuery, state: FSMContext
     await edit_or_send_photo(callback, text_partial, markup)
     await callback.answer()
 
-@router.callback_query(F.data == "pay_card", OrderState.waiting_for_payment_method)
-async def process_pay_card(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "pay_mono", OrderState.waiting_for_payment_method)
+async def process_pay_mono(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     order_id = data['order_id']
     order_hash = data['order_hash']
@@ -299,8 +299,33 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext):
     payment_url = f"https://send.monobank.ua/jar/6KvNFpBCX?a={int(price)}&t={encoded_comment}"
     
     text = (
-        "🖤 <b>Оплата через Monobank</b>\n"
+        "🖤 <b>Оплата через Monobank (Apple/Google Pay)</b>\n\n"
+        f"🆔 <b>Замовлення:</b> #{order_hash}\n"
+        f"🛍 <b>Товар:</b> {product_name}\n"
+        f"👤 <b>Отримувач:</b> {contact_info}\n"
+        f"💲 <b>До оплати:</b> {price} ₴\n\n"
+        "Оплатіть за посиланням нижче.\n"
+        "📸 <b>Після оплати натисніть «Я оплатив» та надішліть скріншот квитанції!</b>"
+    )
+    
+    from keyboards.inline import get_mono_payment_keyboard
+    markup = get_mono_payment_keyboard(str(order_id) + "_" + order_hash, payment_url)
+    await edit_or_send_photo(callback, text, markup)
+    await callback.answer()
 
+@router.callback_query(F.data == "pay_card", OrderState.waiting_for_payment_method)
+async def process_pay_card(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    order_id = data['order_id']
+    order_hash = data['order_hash']
+    product_name = data['product_name']
+    contact_info = data['contact_info']
+    price = data['price']
+    
+    await state.set_state(OrderState.waiting_for_payment_proof)
+    
+    text = (
+        "💳 <b>Переказ на карту</b>\n\n"
         f"🆔 <b>Замовлення:</b> #{order_hash}\n"
         f"🛍 <b>Товар:</b> {product_name}\n"
         f"👤 <b>Отримувач:</b> {contact_info}\n"
@@ -312,7 +337,8 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext):
         "📸 <b>Після оплати натисніть «Я оплатив» та надішліть скріншот квитанції!</b>"
     )
     
-    markup = get_payment_details_keyboard(str(order_id) + "_" + order_hash, payment_url)
+    from keyboards.inline import get_card_payment_keyboard
+    markup = get_card_payment_keyboard(str(order_id) + "_" + order_hash)
     await edit_or_send_photo(callback, text, markup)
     await callback.answer()
 
