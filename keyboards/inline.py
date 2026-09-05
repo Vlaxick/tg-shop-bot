@@ -116,6 +116,26 @@ def get_payment_details_keyboard(order_id: str, payment_url: str) -> InlineKeybo
     builder.row(InlineKeyboardButton(text="❌ Скасувати", callback_data="main_menu", style="danger"))
     return builder.as_markup()
 
+def get_open_tickets_keyboard(tickets: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if not tickets:
+        return None
+    for ticket in tickets:
+        t_id, order_id, user_id, product_name = ticket
+        short_name = product_name[:20] + "..." if len(product_name) > 20 else product_name
+        builder.row(InlineKeyboardButton(text=f"🎫 #{t_id} | З. #{order_id} | {short_name}", callback_data=f"admin_reply_{user_id}_{order_id}"))
+    return builder.as_markup()
+
+def get_open_orders_admin_keyboard(orders: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if not orders:
+        return None
+    for order in orders:
+        o_id, username, product_name, price, created_at = order
+        short_name = product_name[:20] + "..." if len(product_name) > 20 else product_name
+        builder.row(InlineKeyboardButton(text=f"🛍 #{o_id} | @{username} | {short_name}", callback_data=f"admin_view_order_{o_id}"))
+    return builder.as_markup()
+
 def get_admin_action_keyboard(order_id: int, user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(

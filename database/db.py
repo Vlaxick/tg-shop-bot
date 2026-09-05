@@ -35,6 +35,15 @@ async def init_db():
                 FOREIGN KEY (product_id) REFERENCES products (id)
             )
         ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER,
+                user_id INTEGER,
+                status TEXT DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
         await db.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -280,3 +289,41 @@ def get_vip_rank(spent: float) -> tuple[str, float]:
         return ("🥈 Срібло", 0.02)
     else:
         return ("🥉 Бронза", 0.0)
+
+async def get_or_create_ticket(user_id: int, order_id: int) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT id FROM tickets WHERE order_id = ? AND status = 'open'", (order_id,))
+        row = await cursor.fetchone()
+        if row:
+            return row[0]
+        
+        cursor = await db.execute("INSERT INTO tickets (order_id, user_id) VALUES (?, ?)", (order_id, user_id))
+        await db.commit()
+        return cursor.lastrowid
+
+async def close_ticket(ticket_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE tickets SET status = 'closed' WHERE id = ?", (ticket_id,))
+        await db.commit()
+
+async def get_open_tickets() -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute('''
+            SELECT t.id, t.order_id, t.user_id, p.name 
+            FROM tickets t
+            JOIN orders o ON t.order_id = o.id
+            JOIN products p ON o.product_id = p.id
+            WHERE t.status = 'open'
+        ''')
+        return await cursor.fetchall()
+
+async def get_open_orders() -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute('''
+            SELECT o.id, o.username, p.name, p.price, o.created_at
+            FROM orders o
+            JOIN products p ON o.product_id = p.id
+            WHERE o.status = 'pending'
+            ORDER BY o.created_at ASC
+        ''')
+        return await cursor.fetchall()

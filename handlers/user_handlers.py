@@ -98,6 +98,11 @@ async def cmd_start(message: Message, state: FSMContext):
     
     photo = FSInputFile("banner.jpg")
     await message.answer_photo(photo=photo, caption=text, reply_markup=get_main_menu_keyboard(), parse_mode="HTML")
+    
+    from config import ADMIN_IDS
+    if message.from_user.id in ADMIN_IDS:
+        from keyboards.reply import get_admin_main_keyboard
+        await message.answer("🛠 <b>Ви авторизовані як Адміністратор.</b>\nВикористовуйте нижнє меню для керування.", reply_markup=get_admin_main_keyboard(), parse_mode="HTML")
 
 @router.callback_query(F.data == "main_menu")
 async def process_main_menu(callback: CallbackQuery, state: FSMContext):
@@ -241,12 +246,15 @@ async def process_view_order(callback: CallbackQuery):
 async def process_support_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
     order_id = int(callback.data.split("_")[2])
     from states.support import SupportState
+    
+    ticket_id = await db.get_or_create_ticket(callback.from_user.id, order_id)
+    
     await state.set_state(SupportState.user_in_ticket)
-    await state.update_data(support_order_id=order_id)
+    await state.update_data(support_order_id=order_id, ticket_id=ticket_id)
     
     from keyboards.inline import get_ticket_user_keyboard
     text = (
-        f"💬 <b>Чат з підтримкою (Замовлення #{order_id})</b>\n\n"
+        f"💬 <b>Чат з підтримкою (Тікет #{ticket_id}, Замовлення #{order_id})</b>\n\n"
         f"Ви підключені до живого чату з адміністратором. Всі ваші повідомлення будуть пересилатися йому.\n"
         f"Опишіть проблему максимально детально. Ви можете надсилати текст або фото."
     )
@@ -258,10 +266,15 @@ from states.support import SupportState
 async def close_ticket_user(callback: CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     order_id = data.get('support_order_id')
+    ticket_id = data.get('ticket_id')
+    
+    if ticket_id:
+        await db.close_ticket(ticket_id)
+        
     await state.clear()
     
     from config import ADMIN_IDS
-    admin_text = f"⚠️ Користувач @{callback.from_user.username} закрив тікет #{order_id}."
+    admin_text = f"⚠️ Користувач @{callback.from_user.username} закрив тікет #{ticket_id}."
     for admin_id in ADMIN_IDS:
         try:
             await bot.send_message(admin_id, admin_text)
@@ -277,18 +290,22 @@ from states.support import SupportState
 async def process_user_ticket_message(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     order_id = data.get('support_order_id')
+    ticket_id = data.get('ticket_id')
     
     from config import ADMIN_IDS
     from keyboards.inline import get_ticket_admin_keyboard
     
     user_info = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
-    admin_text = f"📩 <b>Тікет #{order_id}</b> | Від: {user_info}\n\n"
+    admin_text = f"📩 <b>Тікет #{ticket_id} (Замовлення #{order_id})</b> | Від: {user_info}\n\nНове повідомлення від клієнта:\n"
     
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, admin_text, parse_mode="HTML")
-            await message.copy_to(admin_id)
-            await bot.send_message(admin_id, "👇", reply_markup=get_ticket_admin_keyboard(message.from_user.id, order_id))
+            markup = get_ticket_admin_keyboard(message.from_user.id, order_id)
+            if message.text:
+                await bot.send_message(admin_id, admin_text + f"<i>{message.text}</i>", parse_mode="HTML", reply_markup=markup)
+            elif message.photo:
+                caption = admin_text + (f"<i>{message.caption}</i>" if message.caption else "")
+                await bot.send_photo(admin_id, photo=message.photo[-1].file_id, caption=caption, parse_mode="HTML", reply_markup=markup)
         except Exception:
             pass
             
