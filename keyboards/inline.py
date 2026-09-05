@@ -6,14 +6,13 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="🛍 Магазин", callback_data="shop", style="success"),
-        InlineKeyboardButton(text="🔍 Пошук", callback_data="search_product")
-    )
-    builder.row(
-        InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders", style="primary"),
-        InlineKeyboardButton(text="👤 Мій профіль", callback_data="cabinet")
+        InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders", style="primary")
     )
     builder.row(
         InlineKeyboardButton(text="⭐️ Відгуки", url="https://t.me/your_channel_or_post"),
+        InlineKeyboardButton(text="👤 Мій профіль", callback_data="cabinet")
+    )
+    builder.row(
         InlineKeyboardButton(text="🎰 Казино", callback_data="casino")
     )
     builder.row(

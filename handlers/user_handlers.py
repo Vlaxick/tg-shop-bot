@@ -403,44 +403,6 @@ async def process_contact_operator(callback: CallbackQuery):
     await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
     await callback.answer()
 
-# --- SMART SEARCH ---
-@router.callback_query(F.data == "search_product")
-async def process_search_start(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(OrderState.waiting_for_search_query)
-    from keyboards.inline import get_back_to_main_keyboard
-    await edit_or_send_photo(callback, "🔍 <b>Розумний Пошук</b>\n\nНадішліть мені слово для пошуку товару (наприклад, iPhone або Premium):", get_back_to_main_keyboard())
-    await callback.answer()
-
-@router.message(OrderState.waiting_for_search_query)
-async def process_search_query(message: Message, state: FSMContext):
-    query = message.text.strip()
-    if len(query) < 2:
-        await message.answer("❌ Запит занадто короткий. Введіть хоча б 2 символи.")
-        return
-        
-    from database import db
-    results = await db.search_products(query)
-    
-    if not results:
-        from keyboards.inline import get_back_to_main_keyboard
-        await message.answer("🔍 За вашим запитом нічого не знайдено. Спробуйте інше слово.", reply_markup=get_back_to_main_keyboard())
-        return
-        
-    # We will build an inline keyboard with the results
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-    from aiogram.types import InlineKeyboardButton
-    builder = InlineKeyboardBuilder()
-    
-    for prod in results:
-        # prod: (id, name, price)
-        short_name = prod[1][:25] + "..." if len(prod[1]) > 25 else prod[1]
-        btn_text = f"📦 {short_name} - {prod[2]}₴"
-        builder.row(InlineKeyboardButton(text=btn_text, callback_data=f"product_{prod[0]}"))
-        
-    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
-    
-    await state.clear()
-    await message.answer(f"🔍 <b>Результати пошуку для:</b> {query}\nОберіть товар зі списку:", reply_markup=builder.as_markup(), parse_mode="HTML")
 
 @router.message(F.web_app_data)
 async def process_web_app_data(message: Message, state: FSMContext):
