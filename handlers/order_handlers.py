@@ -242,11 +242,11 @@ async def process_pay_balance(callback: CallbackQuery, state: FSMContext, bot: B
         f"🛍 Товар: {order[4]}\n"
         f"💵 Сума: {price} ₴"
     )
-    from keyboards.inline import get_admin_order_keyboard
+    from keyboards.inline import get_admin_action_keyboard
     from config import ADMIN_IDS
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, admin_text, reply_markup=get_admin_order_keyboard(order_id, callback.from_user.id), parse_mode="HTML")
+            await bot.send_message(admin_id, admin_text, reply_markup=get_admin_action_keyboard(order_id, callback.from_user.id), parse_mode="HTML")
         except Exception:
             pass
 
@@ -407,7 +407,7 @@ async def process_email_for_sub(message: Message, state: FSMContext, bot: Bot):
     paid_via_balance = data.get('paid_via_balance')
     photo_id = data.get('payment_photo_id')
     
-    from keyboards.inline import get_admin_order_keyboard, get_admin_action_keyboard
+    from keyboards.inline import get_admin_action_keyboard
     from config import ADMIN_IDS
     
     if paid_via_balance:
@@ -421,7 +421,7 @@ async def process_email_for_sub(message: Message, state: FSMContext, bot: Bot):
         )
         for admin_id in ADMIN_IDS:
             try:
-                await bot.send_message(admin_id, admin_text, reply_markup=get_admin_order_keyboard(order_id, message.from_user.id), parse_mode="HTML")
+                await bot.send_message(admin_id, admin_text, reply_markup=get_admin_action_keyboard(order_id, message.from_user.id), parse_mode="HTML")
             except Exception:
                 pass
     else:
