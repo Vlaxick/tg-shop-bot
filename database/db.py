@@ -382,3 +382,12 @@ async def get_all_products() -> list:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute('SELECT id, name FROM products ORDER BY id DESC')
         return await cursor.fetchall()
+
+async def search_products(query: str) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        search_query = f"%{query}%"
+        cursor = await db.execute(
+            'SELECT id, name, price FROM products WHERE name LIKE ? OR description LIKE ? LIMIT 10',
+            (search_query, search_query)
+        )
+        return await cursor.fetchall()

@@ -6,19 +6,35 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="🛍 Магазин", callback_data="shop", style="success"),
-        InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders", style="primary")
+        InlineKeyboardButton(text="🔍 Пошук", callback_data="search_product")
     )
     builder.row(
-        InlineKeyboardButton(text="⭐️ Відгуки", url="https://t.me/your_channel_or_post"),
+        InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders", style="primary"),
         InlineKeyboardButton(text="👤 Мій профіль", callback_data="cabinet")
     )
     builder.row(
+        InlineKeyboardButton(text="⭐️ Відгуки", url="https://t.me/your_channel_or_post"),
         InlineKeyboardButton(text="🎰 Казино", callback_data="casino")
     )
     builder.row(
         InlineKeyboardButton(text="🎁 Реферали", callback_data="referrals"),
         InlineKeyboardButton(text="ℹ️ Підтримка", callback_data="support", style="primary")
     )
+    return builder.as_markup()
+
+def get_support_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💡 Часті запитання (FAQ)", callback_data="faq_menu"))
+    builder.row(InlineKeyboardButton(text="👨‍💻 Зв'язатись з оператором", callback_data="contact_operator"))
+    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
+    return builder.as_markup()
+
+def get_faq_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🚚 Доставка", callback_data="faq_delivery"))
+    builder.row(InlineKeyboardButton(text="💳 Оплата", callback_data="faq_payment"))
+    builder.row(InlineKeyboardButton(text="🔄 Повернення", callback_data="faq_refund"))
+    builder.row(InlineKeyboardButton(text="⬅️ Назад до підтримки", callback_data="support"))
     return builder.as_markup()
 
 def get_categories_keyboard(categories: list) -> InlineKeyboardMarkup:

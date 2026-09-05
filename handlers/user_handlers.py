@@ -363,14 +363,84 @@ async def process_language(callback: CallbackQuery):
 
 @router.callback_query(F.data == "support")
 async def process_support(callback: CallbackQuery):
+    from keyboards.inline import get_support_menu_keyboard
+    text = "ℹ️ <b>Центр підтримки</b>\n\nОберіть потрібний розділ:"
+    await edit_or_send_photo(callback, text, get_support_menu_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data == "faq_menu")
+async def process_faq_menu(callback: CallbackQuery):
+    from keyboards.inline import get_faq_keyboard
+    text = "💡 <b>Часті запитання (FAQ)</b>\n\nОберіть тему, яка вас цікавить:"
+    await edit_or_send_photo(callback, text, get_faq_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("faq_"))
+async def process_faq_item(callback: CallbackQuery):
+    from keyboards.inline import get_faq_keyboard
+    topic = callback.data.split("_")[1]
+    
+    if topic == "delivery":
+        text = "🚚 <b>Доставка:</b>\n\nВсі цифрові товари (ключі, акаунти) видаються протягом 24 годин після оплати (зазвичай миттєво після перевірки). Фізична доставка відсутня."
+    elif topic == "payment":
+        text = "💳 <b>Оплата:</b>\n\nМи приймаємо оплату через Monobank (переказ або Apple/Google Pay), а також криптовалютою через CryptoBot (USDT, TON тощо)."
+    elif topic == "refund":
+        text = "🔄 <b>Повернення:</b>\n\nПовернення коштів можливе лише у випадку, якщо товар не був доставлений, або виявився неробочим і ми не змогли надати заміну."
+    else:
+        text = "💡 Інформація оновлюється."
+        
+    await edit_or_send_photo(callback, text, get_faq_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data == "contact_operator")
+async def process_contact_operator(callback: CallbackQuery):
     text = (
-        "ℹ️ <b>Підтримка та Правила</b>\n\n"
-        "1. Всі цифрові товари видаються протягом 24 годин після оплати.\n"
-        "2. Повернення коштів можливе лише у випадку, якщо товар не був доставлений.\n\n"
-        "Якщо у вас є питання, звертайтесь до адміністратора."
+        "👨‍💻 <b>Зв'язок з оператором</b>\n\n"
+        "Якщо у вас виникли проблеми з конкретним замовленням, будь ласка, зайдіть у «📦 Мої замовлення», оберіть замовлення і натисніть «💬 Зв'язатись з підтримкою».\n\n"
+        "Якщо у вас загальне запитання — напишіть адміністратору: @ваші_контакти"
     )
+    from keyboards.inline import get_back_to_main_keyboard
     await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
     await callback.answer()
+
+# --- SMART SEARCH ---
+@router.callback_query(F.data == "search_product")
+async def process_search_start(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(OrderState.waiting_for_search_query)
+    from keyboards.inline import get_back_to_main_keyboard
+    await edit_or_send_photo(callback, "🔍 <b>Розумний Пошук</b>\n\nНадішліть мені слово для пошуку товару (наприклад, iPhone або Premium):", get_back_to_main_keyboard())
+    await callback.answer()
+
+@router.message(OrderState.waiting_for_search_query)
+async def process_search_query(message: Message, state: FSMContext):
+    query = message.text.strip()
+    if len(query) < 2:
+        await message.answer("❌ Запит занадто короткий. Введіть хоча б 2 символи.")
+        return
+        
+    from database import db
+    results = await db.search_products(query)
+    
+    if not results:
+        from keyboards.inline import get_back_to_main_keyboard
+        await message.answer("🔍 За вашим запитом нічого не знайдено. Спробуйте інше слово.", reply_markup=get_back_to_main_keyboard())
+        return
+        
+    # We will build an inline keyboard with the results
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    from aiogram.types import InlineKeyboardButton
+    builder = InlineKeyboardBuilder()
+    
+    for prod in results:
+        # prod: (id, name, price)
+        short_name = prod[1][:25] + "..." if len(prod[1]) > 25 else prod[1]
+        btn_text = f"📦 {short_name} - {prod[2]}₴"
+        builder.row(InlineKeyboardButton(text=btn_text, callback_data=f"product_{prod[0]}"))
+        
+    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
+    
+    await state.clear()
+    await message.answer(f"🔍 <b>Результати пошуку для:</b> {query}\nОберіть товар зі списку:", reply_markup=builder.as_markup(), parse_mode="HTML")
 
 @router.message(F.web_app_data)
 async def process_web_app_data(message: Message, state: FSMContext):
