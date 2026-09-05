@@ -186,10 +186,10 @@ async def process_product(callback: CallbackQuery):
                 res = await cursor.fetchone()
                 category_id = res[0] if res else 0
 
-        await callback.message.edit_text(
+        await edit_or_send_photo(
+            callback,
             text, 
-            reply_markup=get_product_action_keyboard(product_id, category_id),
-            parse_mode="HTML"
+            markup=get_product_action_keyboard(product_id, category_id)
         )
     else:
         await callback.answer("Товар не знайдено", show_alert=True)
