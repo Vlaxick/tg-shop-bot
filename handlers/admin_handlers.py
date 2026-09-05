@@ -24,10 +24,16 @@ async def process_admin_approve(callback: CallbackQuery, bot: Bot):
     await db.update_order_status(order_id, "approved")
     
     # Notify Admin
-    await callback.message.edit_caption(
-        caption=callback.message.caption + "\n\n✅ <b>Статус:</b> Підтверджено",
-        parse_mode="HTML"
-    )
+    if callback.message.caption:
+        await callback.message.edit_caption(
+            caption=callback.message.html_text + "\n\n✅ <b>Статус:</b> Підтверджено",
+            parse_mode="HTML"
+        )
+    elif callback.message.text:
+        await callback.message.edit_text(
+            text=callback.message.html_text + "\n\n✅ <b>Статус:</b> Підтверджено",
+            parse_mode="HTML"
+        )
     await callback.answer("Замовлення підтверджено!")
     
     # Notify User
@@ -53,10 +59,16 @@ async def process_admin_reject(callback: CallbackQuery, bot: Bot):
     await db.update_order_status(order_id, "rejected")
     
     # Notify Admin
-    await callback.message.edit_caption(
-        caption=callback.message.caption + "\n\n❌ <b>Статус:</b> Відхилено",
-        parse_mode="HTML"
-    )
+    if callback.message.caption:
+        await callback.message.edit_caption(
+            caption=callback.message.html_text + "\n\n❌ <b>Статус:</b> Відхилено",
+            parse_mode="HTML"
+        )
+    elif callback.message.text:
+        await callback.message.edit_text(
+            text=callback.message.html_text + "\n\n❌ <b>Статус:</b> Відхилено",
+            parse_mode="HTML"
+        )
     await callback.answer("Замовлення відхилено!")
     
     # Notify User
