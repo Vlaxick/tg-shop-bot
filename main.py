@@ -24,6 +24,12 @@ async def main():
     dp.include_router(order_handlers.router)
     dp.include_router(admin_handlers.router)
 
+    from aiogram.types import BotCommand
+    commands = [
+        BotCommand(command="start", description="Перезапустити бота / Головне меню")
+    ]
+    await bot.set_my_commands(commands)
+
     # Start polling
     logging.info("Starting bot...")
     await bot.delete_webhook(drop_pending_updates=True)
