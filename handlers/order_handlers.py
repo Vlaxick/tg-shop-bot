@@ -1,29 +1,31 @@
-from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, FSInputFile
-from aiogram.fsm.context import FSMContext
-from states.order import OrderState
-from keyboards.inline import (
-    get_recipient_keyboard,
-    get_payment_method_keyboard,
-    get_payment_details_keyboard,
-    get_admin_action_keyboard
-)
-from database import db
-from config import ADMIN_IDS
 import random
 import string
+
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, FSInputFile, Message
+
+from config import ADMIN_IDS
+from database import db
+from keyboards.inline import (
+    get_back_to_main_keyboard,
+    get_card_payment_keyboard,
+    get_mono_payment_keyboard,
+    get_payment_method_keyboard,
+    get_recipient_keyboard,
+)
+from states.order import OrderState
 
 router = Router()
 
 async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None):
-    from aiogram.types import FSInputFile
     try:
         if callback.message.photo:
             await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="HTML")
         else:
             await callback.message.delete()
             await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
-    except Exception as e:
+    except Exception:
         try:
             await callback.message.delete()
         except:
@@ -242,8 +244,8 @@ async def process_pay_balance(callback: CallbackQuery, state: FSMContext, bot: B
         f"🛍 Товар: {order[4]}\n"
         f"💵 Сума: {price} ₴"
     )
-    from keyboards.inline import get_admin_action_keyboard
     from config import ADMIN_IDS
+    from keyboards.inline import get_admin_action_keyboard
     for admin_id in ADMIN_IDS:
         try:
             await bot.send_message(admin_id, admin_text, reply_markup=get_admin_action_keyboard(order_id, callback.from_user.id), parse_mode="HTML")
@@ -308,7 +310,6 @@ async def process_pay_mono(callback: CallbackQuery, state: FSMContext):
         "📸 <b>Після оплати натисніть «Я оплатив» та надішліть скріншот квитанції!</b>"
     )
     
-    from keyboards.inline import get_mono_payment_keyboard
     markup = get_mono_payment_keyboard(str(order_id) + "_" + order_hash, payment_url)
     await edit_or_send_photo(callback, text, markup)
     await callback.answer()
@@ -337,7 +338,6 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext):
         "📸 <b>Після оплати натисніть «Я оплатив» та надішліть скріншот квитанції!</b>"
     )
     
-    from keyboards.inline import get_card_payment_keyboard
     markup = get_card_payment_keyboard(str(order_id) + "_" + order_hash)
     await edit_or_send_photo(callback, text, markup)
     await callback.answer()
@@ -433,8 +433,8 @@ async def process_email_for_sub(message: Message, state: FSMContext, bot: Bot):
     paid_via_balance = data.get('paid_via_balance')
     photo_id = data.get('payment_photo_id')
     
-    from keyboards.inline import get_admin_action_keyboard
     from config import ADMIN_IDS
+    from keyboards.inline import get_admin_action_keyboard
     
     if paid_via_balance:
         admin_text = (

@@ -1,4 +1,3 @@
-import re
 
 with open("/Users/macbook/tg-bot/handlers/user_handlers.py", "r") as f:
     content = f.read()
@@ -18,7 +17,6 @@ new_start_text = """    text = (
     await message.answer_photo(photo=photo, caption=text, reply_markup=get_main_menu_keyboard(), parse_mode="HTML")"""
 
 # Find where `text = (` starts in cmd_start
-import re
 start_idx = content.find('    text = (\n        "👋 Вітаємо')
 end_idx = content.find('    await message.answer(text, reply_markup=get_main_menu_keyboard())') + len('    await message.answer(text, reply_markup=get_main_menu_keyboard())')
 if start_idx != -1 and end_idx != -1:

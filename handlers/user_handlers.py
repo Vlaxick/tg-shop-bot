@@ -1,16 +1,17 @@
-from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, FSInputFile
-from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram import Bot, F, Router
+from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
-from states.order import OrderState
-from keyboards.inline import (
-    get_main_menu_keyboard,
-    get_categories_keyboard,
-    get_products_keyboard,
-    get_product_action_keyboard,
-    get_back_to_main_keyboard
-)
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, Message
+
 from database import db
+from keyboards.inline import (
+    get_back_to_main_keyboard,
+    get_categories_keyboard,
+    get_main_menu_keyboard,
+    get_product_action_keyboard,
+    get_products_keyboard,
+)
+from states.order import OrderState
 
 router = Router()
 
@@ -57,7 +58,7 @@ async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None):
         else:
             await callback.message.delete()
             await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
-    except Exception as e:
+    except Exception:
         # Fallback if something goes wrong
         try:
             await callback.message.delete()
@@ -91,10 +92,10 @@ async def cmd_start(message: Message, state: FSMContext):
     )
     
     text = (
-        "😋 Привіт, <b>{username}</b>!\n\n"
+        f"😋 Привіт, <b>{message.from_user.first_name}</b>!\n\n"
         "Тут ви можете швидко придбати цифрові товари та підписки на свій акаунт.\n\n"
         "⭐️ За допомогою нашого сервісу вже виконано безліч успішних замовлень!"
-    ).format(username=message.from_user.first_name)
+    )
     
     photo = FSInputFile("banner.jpg")
     await message.answer_photo(photo=photo, caption=text, reply_markup=get_main_menu_keyboard(), parse_mode="HTML")
@@ -109,10 +110,10 @@ async def process_main_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     
     text = (
-        "😋 Привіт, <b>{username}</b>!\n\n"
+        f"😋 Привіт, <b>{callback.from_user.first_name}</b>!\n\n"
         "Тут ви можете швидко придбати цифрові товари та підписки на свій акаунт.\n\n"
         "⭐️ За допомогою нашого сервісу вже виконано безліч успішних замовлень!"
-    ).format(username=callback.from_user.first_name)
+    )
     
     await edit_or_send_photo(callback, text, get_main_menu_keyboard())
     await callback.answer()
@@ -202,8 +203,8 @@ async def process_my_orders_page(callback: CallbackQuery, page: int):
 
     per_page = 4
     total_pages = (len(orders) + per_page - 1) // per_page
-    if page < 1: page = 1
-    if page > total_pages: page = total_pages
+    page = max(page, 1)
+    page = min(page, total_pages)
     
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
@@ -257,6 +258,8 @@ async def process_leave_review(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 from states.order import ReviewState
+
+
 @router.message(ReviewState.waiting_for_review)
 async def process_review_message(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
@@ -275,8 +278,9 @@ async def process_review_message(message: Message, state: FSMContext, bot: Bot):
             
     # Thank user
     text = "💖 <b>Дякуємо за ваш відгук!</b>\nМи цінуємо, що ви обрали наш сервіс."
-    from keyboards.inline import get_main_menu_keyboard
     from aiogram.types import FSInputFile
+
+    from keyboards.inline import get_main_menu_keyboard
     photo = FSInputFile("banner.jpg")
     await message.answer_photo(photo=photo, caption=text, reply_markup=get_main_menu_keyboard(), parse_mode="HTML")
 @router.callback_query(F.data.startswith("support_order_"))
@@ -299,6 +303,8 @@ async def process_support_order(callback: CallbackQuery, state: FSMContext, bot:
     await callback.answer()
 
 from states.support import SupportState
+
+
 @router.callback_query(F.data == "close_ticket_user", SupportState.user_in_ticket)
 async def close_ticket_user(callback: CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
@@ -323,6 +329,8 @@ async def close_ticket_user(callback: CallbackQuery, state: FSMContext, bot: Bot
     await callback.answer()
 
 from states.support import SupportState
+
+
 @router.message(SupportState.user_in_ticket)
 async def process_user_ticket_message(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
@@ -412,6 +420,7 @@ async def process_fragment_link(message: Message, state: FSMContext):
     )
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 
 @router.callback_query(F.data == "cabinet")
 async def process_cabinet(callback: CallbackQuery):
@@ -503,6 +512,7 @@ async def process_casino_menu(callback: CallbackQuery):
     await callback.answer()
 
 import asyncio
+
 
 @router.callback_query(F.data.startswith("bet_"))
 async def process_casino_bet(callback: CallbackQuery, bot: Bot):
@@ -596,8 +606,9 @@ async def process_create_gift(callback: CallbackQuery, state: FSMContext):
     await edit_or_send_photo(callback, text)
     await callback.answer()
 
-import string
 import random
+import string
+
 
 def generate_gift_code():
     return "GIFT-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -636,7 +647,7 @@ async def process_gift_amount(message: Message, state: FSMContext):
 async def process_topup_balance(callback: CallbackQuery, state: FSMContext):
     await state.set_state(OrderState.waiting_for_topup_amount)
     
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from aiogram.types import InlineKeyboardButton
     from aiogram.utils.keyboard import InlineKeyboardBuilder
     builder = InlineKeyboardBuilder()
     builder.row(

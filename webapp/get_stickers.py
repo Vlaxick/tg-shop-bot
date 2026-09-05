@@ -1,5 +1,5 @@
-import urllib.request
 import re
+import urllib.request
 
 # Let's try to fetch a sticker pack page that has Telegram gifts
 url = "https://chpic.su/en/stickers/TelegramGifts/"

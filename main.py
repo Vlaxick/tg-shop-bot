@@ -1,10 +1,13 @@
 import asyncio
 import logging
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+
 from config import BOT_TOKEN
 from database.db import init_db
-from handlers import user_handlers, order_handlers, admin_handlers
+from handlers import admin_handlers, order_handlers, user_handlers
+
 
 async def main():
     logging.basicConfig(

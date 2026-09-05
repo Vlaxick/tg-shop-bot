@@ -1,4 +1,3 @@
-import re
 
 with open("/Users/macbook/tg-bot/handlers/order_handlers.py", "r") as f:
     content = f.read()
@@ -31,7 +30,6 @@ if "async def edit_or_send_photo" not in content:
 # We will use regex to find and replace
 # A simpler way is to just replace `.edit_text` calls manually or with regex.
 
-import re
 
 # 1. replace: await message_or_callback.message.edit_text(text, reply_markup=markup, parse_mode="HTML")
 content = content.replace('await message_or_callback.message.edit_text(text, reply_markup=markup, parse_mode="HTML")', 

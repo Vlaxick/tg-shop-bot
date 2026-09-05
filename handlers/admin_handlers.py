@@ -1,9 +1,11 @@
 # pyrefly: ignore [missing-import]
-from aiogram import Router, F, Bot
+from aiogram import Bot, F, Router
+
 # pyrefly: ignore [missing-import]
 from aiogram.types import CallbackQuery
-from database import db
+
 from config import ADMIN_IDS
+from database import db
 
 router = Router()
 
@@ -128,7 +130,9 @@ async def process_admin_reject(callback: CallbackQuery, bot: Bot):
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+
 from states.support import SupportState
+
 
 @router.callback_query(F.data.startswith("admin_reply_"))
 async def process_admin_reply_callback(callback: CallbackQuery, state: FSMContext, bot: Bot):
@@ -207,11 +211,11 @@ async def close_ticket_admin(callback: CallbackQuery, state: FSMContext, bot: Bo
     data = await state.get_data()
     target_user_id = data.get('reply_user_id')
     
-    from database import db
     # We need ticket_id to close it. But we can just close by order_id since there's max 1 open ticket per order
     # Actually wait, we don't have close_ticket_by_order in db.
     # We can write a quick execute here.
     import aiosqlite
+
     from database.db import DB_PATH
     async with aiosqlite.connect(DB_PATH) as _db:
         await _db.execute("UPDATE tickets SET status = 'closed' WHERE order_id = ? AND status = 'open'", (order_id,))

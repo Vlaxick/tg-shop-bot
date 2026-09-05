@@ -1,4 +1,3 @@
-import re
 
 with open("/Users/macbook/tg-bot/keyboards/inline.py", "r") as f:
     content = f.read()

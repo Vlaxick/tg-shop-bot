@@ -1,4 +1,5 @@
 import sqlite3
+
 conn = sqlite3.connect('/Users/macbook/tg-bot/shop.db')
 c = conn.cursor()
 desc = """Додам у сім'ю, підписка Gemini AI Pro (і всі її переваги).

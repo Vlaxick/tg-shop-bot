@@ -1,7 +1,6 @@
 with open("/Users/macbook/tg-bot/handlers/user_handlers.py", "r") as f:
     content = f.read()
 
-import re
 # Find where process_referrals starts
 start = content.find("@router.callback_query(F.data == \"referrals\")")
 if start != -1:

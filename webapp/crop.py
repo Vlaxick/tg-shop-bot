@@ -1,5 +1,6 @@
-from PIL import Image
 import os
+
+from PIL import Image
 
 img_path = "/Users/macbook/.gemini/antigravity-ide/brain/69fce9ea-b6d2-416e-91bc-985571a674a8/.user_uploaded/media_1788448908949.png"
 if not os.path.exists(img_path):

@@ -1,4 +1,3 @@
-import re
 
 with open("/Users/macbook/tg-bot/database/db.py", "r") as f:
     content = f.read()

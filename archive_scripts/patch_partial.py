@@ -1,4 +1,3 @@
-import re
 
 with open("/Users/macbook/tg-bot/handlers/order_handlers.py", "r") as f:
     content = f.read()

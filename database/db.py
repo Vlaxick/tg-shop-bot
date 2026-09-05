@@ -1,5 +1,6 @@
-import aiosqlite
 import logging
+
+import aiosqlite
 
 DB_PATH = "shop.db"
 
@@ -161,15 +162,14 @@ async def update_order_contact_info(order_id: int, contact_info: str):
         await db.commit()
 
 async def get_user_orders(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute('''
+    async with aiosqlite.connect(DB_PATH) as db, db.execute('''
             SELECT o.id, p.name, o.status, o.created_at, p.price
             FROM orders o
             JOIN products p ON o.product_id = p.id
             WHERE o.user_id = ?
             ORDER BY o.created_at DESC
         ''', (user_id,)) as cursor:
-            return await cursor.fetchall()
+        return await cursor.fetchall()
 
 async def add_user(user_id: int, username: str, referrer_id: int = None):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -209,15 +209,14 @@ async def get_approved_orders_count(user_id: int) -> int:
             return res[0] if res else 0
 
 async def get_user_stats(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute('''
+    async with aiosqlite.connect(DB_PATH) as db, db.execute('''
             SELECT COUNT(o.id), SUM(p.price) 
             FROM orders o 
             JOIN products p ON o.product_id = p.id 
             WHERE o.user_id = ? AND o.status IN ('paid', 'approved')
         ''', (user_id,)) as cursor:
-            res = await cursor.fetchone()
-            return res[0] or 0, res[1] or 0.0
+        res = await cursor.fetchone()
+        return res[0] or 0, res[1] or 0.0
 
 
 async def claim_daily_bonus(user_id: int) -> float:

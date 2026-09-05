@@ -1,7 +1,6 @@
 with open("/Users/macbook/tg-bot/handlers/order_handlers.py", "r") as f:
     content = f.read()
 
-import re
 
 # find pay_balance block
 start = content.find("@router.callback_query(F.data == \"pay_balance\", OrderState.waiting_for_payment_method)")
