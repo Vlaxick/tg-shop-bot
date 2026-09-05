@@ -150,10 +150,10 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     products = await db.get_products_by_category(category_id)
     if not products:
         text = "😔 В цій категорії поки немає товарів."
-        await callback.message.edit_text(text, reply_markup=get_categories_keyboard(await db.get_categories()))
+        await edit_or_send_photo(callback, text, get_categories_keyboard(await db.get_categories()))
     else:
         text = "📦 Оберіть товар:"
-        await callback.message.edit_text(text, reply_markup=get_products_keyboard(products, category_id))
+        await edit_or_send_photo(callback, text, get_products_keyboard(products, category_id))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("prod_"))
