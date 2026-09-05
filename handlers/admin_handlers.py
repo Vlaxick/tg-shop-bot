@@ -10,9 +10,51 @@ router = Router()
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
+@router.callback_query(F.data.startswith("admin_take_"))
+async def process_admin_take(callback: CallbackQuery, bot: Bot):
+    if not is_admin(callback.fromuser.id if hasattr(callback, 'fromuser') else callback.from_user.id):
+        await callback.answer("У вас немає прав для цієї дії.", show_alert=True)
+        return
+
+    data_parts = callback.data.split("_")
+    order_id = int(data_parts[2])
+    user_id = int(data_parts[3])
+    
+    # Update DB
+    await db.update_order_status(order_id, "in_progress")
+    
+    # Notify Admin
+    from keyboards.inline import get_admin_action_keyboard
+    markup = get_admin_action_keyboard(order_id, user_id, "in_progress")
+    if callback.message.caption:
+        await callback.message.edit_caption(
+            caption=callback.message.html_text + "\n\n⏳ <b>Статус:</b> В роботі",
+            reply_markup=markup,
+            parse_mode="HTML"
+        )
+    elif callback.message.text:
+        await callback.message.edit_text(
+            text=callback.message.html_text + "\n\n⏳ <b>Статус:</b> В роботі",
+            reply_markup=markup,
+            parse_mode="HTML"
+        )
+    await callback.answer("Замовлення взято в роботу!")
+    
+    # Notify User
+    try:
+        from keyboards.inline import get_order_in_progress_keyboard
+        msg_text = f"⏳ Ваше замовлення #{order_id} було взято в роботу!\nЯкщо у вас є питання, ви можете зв'язатись із підтримкою."
+        await bot.send_message(
+            chat_id=user_id,
+            text=msg_text,
+            reply_markup=get_order_in_progress_keyboard(order_id)
+        )
+    except Exception as e:
+        print(f"Failed to notify user {user_id}: {e}")
+
 @router.callback_query(F.data.startswith("admin_approve_"))
 async def process_admin_approve(callback: CallbackQuery, bot: Bot):
-    if not is_admin(callback.from_user.id):
+    if not is_admin(callback.fromuser.id if hasattr(callback, 'fromuser') else callback.from_user.id):
         await callback.answer("У вас немає прав для цієї дії.", show_alert=True)
         return
 
@@ -26,12 +68,12 @@ async def process_admin_approve(callback: CallbackQuery, bot: Bot):
     # Notify Admin
     if callback.message.caption:
         await callback.message.edit_caption(
-            caption=callback.message.html_text + "\n\n✅ <b>Статус:</b> Підтверджено",
+            caption=callback.message.html_text.replace("\n\n⏳ <b>Статус:</b> В роботі", "") + "\n\n✅ <b>Статус:</b> Виконано",
             parse_mode="HTML"
         )
     elif callback.message.text:
         await callback.message.edit_text(
-            text=callback.message.html_text + "\n\n✅ <b>Статус:</b> Підтверджено",
+            text=callback.message.html_text.replace("\n\n⏳ <b>Статус:</b> В роботі", "") + "\n\n✅ <b>Статус:</b> Виконано",
             parse_mode="HTML"
         )
     await callback.answer("Замовлення підтверджено!")
@@ -40,15 +82,11 @@ async def process_admin_approve(callback: CallbackQuery, bot: Bot):
     try:
         from keyboards.inline import get_order_approved_keyboard
         order = await db.get_order(order_id)
-        if order and order[7] in (3, 5):
-            msg_text = f"✅ Ваше замовлення #{order_id} було успішно підтверджене!\nОчікуйте повідомлення від адміна."
-        else:
-            msg_text = f"✅ Ваше замовлення #{order_id} було успішно підтверджене!\nОчікуйте товар найближчим часом."
-            
+        msg_text = f"✅ Ваше замовлення #{order_id} було успішно виконане!\n\nВи можете залишити відгук про нашу роботу нижче."
         await bot.send_message(
             chat_id=user_id,
             text=msg_text,
-            reply_markup=get_order_approved_keyboard()
+            reply_markup=get_order_approved_keyboard(order_id)
         )
     except Exception as e:
         print(f"Failed to notify user {user_id}: {e}")

@@ -136,12 +136,18 @@ def get_open_orders_admin_keyboard(orders: list) -> InlineKeyboardMarkup:
         builder.row(InlineKeyboardButton(text=f"🛍 #{o_id} | @{username} | {short_name}", callback_data=f"admin_view_order_{o_id}"))
     return builder.as_markup()
 
-def get_admin_action_keyboard(order_id: int, user_id: int) -> InlineKeyboardMarkup:
+def get_admin_action_keyboard(order_id: int, user_id: int, status: str = "pending") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="✅ Підтвердити", callback_data=f"admin_approve_{order_id}_{user_id}"),
-        InlineKeyboardButton(text="❌ Відхилити", callback_data=f"admin_reject_{order_id}_{user_id}")
-    )
+    if status == "pending":
+        builder.row(
+            InlineKeyboardButton(text="⏳ Взяти в роботу", callback_data=f"admin_take_{order_id}_{user_id}"),
+            InlineKeyboardButton(text="❌ Відхилити", callback_data=f"admin_reject_{order_id}_{user_id}")
+        )
+    elif status == "in_progress":
+        builder.row(
+            InlineKeyboardButton(text="✅ Підтвердити успішно", callback_data=f"admin_approve_{order_id}_{user_id}"),
+            InlineKeyboardButton(text="❌ Відхилити", callback_data=f"admin_reject_{order_id}_{user_id}")
+        )
     return builder.as_markup()
 
 def get_back_to_main_keyboard() -> InlineKeyboardMarkup:
@@ -149,10 +155,16 @@ def get_back_to_main_keyboard() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu", style="danger"))
     return builder.as_markup()
 
-def get_order_approved_keyboard() -> InlineKeyboardMarkup:
+def get_order_in_progress_keyboard(order_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💬 Написати повідомлення", callback_data=f"support_order_{order_id}"))
     builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
-    builder.row(InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders"))
+    return builder.as_markup()
+
+def get_order_approved_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="📝 Залишити відгук", callback_data=f"leave_review_{order_id}"))
+    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
     return builder.as_markup()
 
 def get_faq_keyboard() -> InlineKeyboardMarkup:

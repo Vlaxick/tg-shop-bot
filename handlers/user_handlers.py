@@ -241,7 +241,44 @@ async def process_view_order(callback: CallbackQuery):
     from keyboards.inline import get_order_details_keyboard
     await edit_or_send_photo(callback, text, get_order_details_keyboard(order[0]))
     await callback.answer()
+@router.callback_query(F.data.startswith("leave_review_"))
+async def process_leave_review(callback: CallbackQuery, state: FSMContext):
+    order_id = int(callback.data.split("_")[2])
+    from states.order import ReviewState
+    await state.set_state(ReviewState.waiting_for_review)
+    await state.update_data(review_order_id=order_id)
+    
+    text = (
+        f"📝 <b>Залишити відгук (Замовлення #{order_id})</b>\n\n"
+        f"Напишіть ваші враження від покупки одним повідомленням. Ваша думка дуже важлива для нас!"
+    )
+    from keyboards.inline import get_back_to_main_keyboard
+    await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
+    await callback.answer()
 
+from states.order import ReviewState
+@router.message(ReviewState.waiting_for_review)
+async def process_review_message(message: Message, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    order_id = data.get('review_order_id')
+    await state.clear()
+    
+    # Notify admins
+    from config import ADMIN_IDS
+    user_info = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
+    admin_text = f"📝 <b>Новий відгук! (Замовлення #{order_id})</b>\nВід: {user_info}\n\n<i>{message.text}</i>"
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, admin_text, parse_mode="HTML")
+        except:
+            pass
+            
+    # Thank user
+    text = "💖 <b>Дякуємо за ваш відгук!</b>\nМи цінуємо, що ви обрали наш сервіс."
+    from keyboards.inline import get_main_menu_keyboard
+    from aiogram.types import FSInputFile
+    photo = FSInputFile("banner.jpg")
+    await message.answer_photo(photo=photo, caption=text, reply_markup=get_main_menu_keyboard(), parse_mode="HTML")
 @router.callback_query(F.data.startswith("support_order_"))
 async def process_support_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
     order_id = int(callback.data.split("_")[2])
