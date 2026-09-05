@@ -131,8 +131,8 @@ def get_back_to_main_keyboard() -> InlineKeyboardMarkup:
 
 def get_order_approved_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="📝 Залишити відгук", url="https://t.me/your_channel_or_post", style="primary"))
-    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu", style="success"))
+    builder.row(InlineKeyboardButton(text="🏠 Головне меню", callback_data="main_menu"))
+    builder.row(InlineKeyboardButton(text="📦 Мої замовлення", callback_data="my_orders"))
     return builder.as_markup()
 
 def get_faq_keyboard() -> InlineKeyboardMarkup:
@@ -154,4 +154,26 @@ def get_casino_keyboard() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="Поставити 100 ₴", callback_data="bet_100"))
     builder.row(InlineKeyboardButton(text="💳 Поповнити баланс", callback_data="topup_balance", style="success"))
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu", style="danger"))
+    return builder.as_markup()
+
+def get_user_orders_keyboard(orders: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for order in orders:
+        order_id, name, status, created_at, price = order
+        status_emoji = "⏳" if status == "pending" else "✅" if status == "approved" else "❌"
+        # Truncate name if too long
+        short_name = name[:20] + "..." if len(name) > 20 else name
+        builder.row(InlineKeyboardButton(text=f"{status_emoji} #{order_id} | {short_name}", callback_data=f"view_order_{order_id}"))
+    builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu", style="danger"))
+    return builder.as_markup()
+
+def get_order_details_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💬 Зв'язатись з підтримкою", callback_data=f"support_order_{order_id}"))
+    builder.row(InlineKeyboardButton(text="⬅️ Назад до замовлень", callback_data="my_orders", style="danger"))
+    return builder.as_markup()
+
+def get_admin_reply_keyboard(user_id: int, order_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💬 Відповісти", callback_data=f"admin_reply_{user_id}_{order_id}"))
     return builder.as_markup()

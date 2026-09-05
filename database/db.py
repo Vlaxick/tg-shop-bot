@@ -134,7 +134,7 @@ async def create_order(user_id: int, username: str, contact_info: str, product_i
 async def get_order(order_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute('''
-            SELECT o.id, o.user_id, o.username, o.contact_info, p.name, p.price, o.status
+            SELECT o.id, o.user_id, o.username, o.contact_info, p.name, p.price, o.status, p.category_id, o.created_at
             FROM orders o
             JOIN products p ON o.product_id = p.id
             WHERE o.id = ?
@@ -154,7 +154,7 @@ async def update_order_contact_info(order_id: int, contact_info: str):
 async def get_user_orders(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute('''
-            SELECT p.name, o.status, o.created_at
+            SELECT o.id, p.name, o.status, o.created_at, p.price
             FROM orders o
             JOIN products p ON o.product_id = p.id
             WHERE o.user_id = ?
