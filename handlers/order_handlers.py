@@ -442,6 +442,9 @@ async def process_payment_proof(message: Message, state: FSMContext, bot: Bot):
                 parse_mode="HTML"
             )
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            await message.answer(f"DEBUG ERROR for admin {admin_id}:\n\n{e}\n\nText length: {len(admin_text)}\n\n{error_details[-300:]}")
             print(f"Failed to send to admin {admin_id}: {e}")
 
 @router.message(OrderState.waiting_for_email)
