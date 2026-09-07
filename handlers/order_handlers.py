@@ -173,10 +173,18 @@ async def process_recipient_self(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "recipient_friend", OrderState.waiting_for_recipient)
 async def process_recipient_friend(callback: CallbackQuery, state: FSMContext):
     await state.set_state(OrderState.waiting_for_friend_contact)
-    await callback.message.edit_text(
-        "📝 Введіть <b>@username</b> друга або посилання на профіль для відправки товару:",
-        parse_mode="HTML"
-    )
+    try:
+        await callback.message.edit_caption(
+            caption="📝 Напишіть username, номер або посилання на друга, щоб ми передали йому товар:",
+            reply_markup=get_back_to_main_keyboard(),
+            parse_mode="HTML"
+        )
+    except Exception:
+        await callback.message.edit_text(
+            "📝 Напишіть username, номер або посилання на друга, щоб ми передали йому товар:",
+            reply_markup=get_back_to_main_keyboard(),
+            parse_mode="HTML"
+        )
     await callback.answer()
 
 @router.message(OrderState.waiting_for_friend_contact)
