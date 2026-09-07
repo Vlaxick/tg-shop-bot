@@ -280,6 +280,30 @@ async def admin_stats(message: Message):
 
 from states.admin import AdminState
 
+import os
+from aiogram.filters import Command
+
+@router.message(Command("find_db"))
+async def cmd_find_db(message: Message):
+    if not is_admin(message.from_user.id):
+        return
+    
+    import glob
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    files = glob.glob(os.path.join(base_dir, "**/*.db"), recursive=True) + \
+            glob.glob(os.path.join(base_dir, "**/*.sqlite"), recursive=True)
+    
+    response = "🗄 <b>Знайдені бази даних на сервері:</b>\n\n"
+    for f in files:
+        size = os.path.getsize(f)
+        rel_path = os.path.relpath(f, base_dir)
+        response += f"📄 {rel_path} — <b>{size} байт</b>\n"
+        
+    if not files:
+        response += "Файлів не знайдено."
+        
+    await message.answer(response, parse_mode="HTML")
+
 @router.message(F.text == "📢 Розсилка")
 async def admin_broadcast_start(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
