@@ -56,7 +56,7 @@ async def process_admin_take(callback: CallbackQuery, bot: Bot):
 
 @router.callback_query(F.data.startswith("admin_approve_"))
 async def process_admin_approve(callback: CallbackQuery, bot: Bot):
-    if not is_admin(callback.fromuser.id if hasattr(callback, 'fromuser') else callback.from_user.id):
+    if not is_admin(callback.from_user.id if hasattr(callback, 'from_user') else callback.from_user.id):
         await callback.answer("У вас немає прав для цієї дії.", show_alert=True)
         return
 
@@ -64,8 +64,17 @@ async def process_admin_approve(callback: CallbackQuery, bot: Bot):
     order_id = int(data_parts[2])
     user_id = int(data_parts[3])
     
+    order = await db.get_order(order_id)
+    if not order:
+        await callback.answer("Замовлення не знайдено!", show_alert=True)
+        return
+
     # Update DB
     await db.update_order_status(order_id, "approved")
+    
+    # Check if it's a top-up
+    if order[4] == "Поповнення балансу":
+        await db.add_balance(user_id, order[5])
     
     # Notify Admin
     if callback.message.caption:
@@ -83,12 +92,14 @@ async def process_admin_approve(callback: CallbackQuery, bot: Bot):
     # Notify User
     try:
         from keyboards.inline import get_order_approved_keyboard
-        order = await db.get_order(order_id)
         msg_text = f"✅ Ваше замовлення #{order_id} було успішно виконане!\n\nВи можете залишити відгук про нашу роботу нижче."
+        if order[4] == "Поповнення балансу":
+            msg_text = f"✅ Ваше поповнення балансу на суму {order[5]:.2f} ₴ було успішно підтверджено та зараховано!"
+            
         await bot.send_message(
             chat_id=user_id,
             text=msg_text,
-            reply_markup=get_order_approved_keyboard(order_id)
+            reply_markup=get_order_approved_keyboard(order_id) if order[4] != "Поповнення балансу" else None
         )
     except Exception as e:
         print(f"Failed to notify user {user_id}: {e}")
