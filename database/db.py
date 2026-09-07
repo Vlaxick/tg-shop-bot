@@ -1,8 +1,10 @@
+import os
 import logging
 
 import aiosqlite
 
-DB_PATH = "shop.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "shop.db")
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
