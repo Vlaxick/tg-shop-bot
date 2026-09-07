@@ -50,21 +50,23 @@ async def process_daily_bonus(callback: CallbackQuery):
     else:
         await callback.answer(f"⏳ Наступний бонус буде доступний через {status}.", show_alert=True)
 
-async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None):
-    from aiogram.types import FSInputFile
+async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None, photo_path="banner.jpg"):
+    from aiogram.types import FSInputFile, InputMediaPhoto
     try:
         if callback.message.photo:
-            await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="HTML")
+            await callback.message.edit_media(
+                media=InputMediaPhoto(media=FSInputFile(photo_path), caption=text, parse_mode="HTML"),
+                reply_markup=markup
+            )
         else:
             await callback.message.delete()
-            await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
+            await callback.message.answer_photo(photo=FSInputFile(photo_path), caption=text, reply_markup=markup, parse_mode="HTML")
     except Exception:
-        # Fallback if something goes wrong
+        # Fallback if media is the same and throws MessageNotModified
         try:
-            await callback.message.delete()
+            await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="HTML")
         except:
             pass
-        await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
 
 
 @router.message(Command("cancel"), StateFilter("*"))
@@ -122,7 +124,7 @@ async def process_main_menu(callback: CallbackQuery, state: FSMContext):
 async def process_shop(callback: CallbackQuery):
     categories = await db.get_categories()
     text = "🛍 Оберіть категорію:"
-    await edit_or_send_photo(callback, text, get_categories_keyboard(categories))
+    await edit_or_send_photo(callback, text, get_categories_keyboard(categories), photo_path="catalog_banner.jpg")
     await callback.answer()
 
 @router.callback_query(F.data.startswith("cat_"))
@@ -134,7 +136,7 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
     if category_id == 1:
         from keyboards.inline import get_stars_keyboard
         text = "⭐️ <b>Telegram Stars</b>\n\nОберіть бажаний пакет або введіть власну кількість (мінімум 50 зірок)."
-        await edit_or_send_photo(callback, text, get_stars_keyboard(category_id))
+        await edit_or_send_photo(callback, text, get_stars_keyboard(category_id), photo_path="stars_banner.jpg")
         await callback.answer()
         return
         
@@ -144,22 +146,75 @@ async def process_category(callback: CallbackQuery, state: FSMContext):
         await state.set_state(OrderState.waiting_for_fragment_link)
         text = (
             "🎁 <b>Telegram Подарунки / NFT</b>\n"
-
-            "Оберіть один із стандартних подарунків нижче, або надішліть посилання (скріншот) на будь-який унікальний подарунок чи юзернейм з Fragment.\n\n"
-            "👇 <b>Оберіть подарунок кнопкою або кидайте лінк:</b>\n\n"
-            "<i>(Після отримання запиту з вами зв'яжеться адміністратор для оформлення)</i>"
+            "Оберіть подарунок зі списку нижче або надішліть лінк на унікальний (з Fragment).\n\n"
+            "<i>(Після запиту з вами зв'яжеться адміністратор)</i>"
         )
-        await edit_or_send_photo(callback, text, get_fragment_keyboard())
+        await edit_or_send_photo(callback, text, get_fragment_keyboard(), photo_path="gifts_banner.jpg")
         await callback.answer()
         return
+
+    photo_for_cat = "catalog_banner.jpg"
+    if category_id == 2:
+        photo_for_cat = "premium_banner.jpg"
+    elif category_id == 3:
+        photo_for_cat = "gemini_banner.jpg"
+    elif category_id == 5:
+        photo_for_cat = "youtube_banner.jpg"
 
     products = await db.get_products_by_category(category_id)
     if not products:
         text = "😔 В цій категорії поки немає товарів."
-        await edit_or_send_photo(callback, text, get_categories_keyboard(await db.get_categories()))
+        await edit_or_send_photo(callback, text, get_categories_keyboard(await db.get_categories()), photo_path=photo_for_cat)
     else:
-        text = "📦 Оберіть товар:"
-        await edit_or_send_photo(callback, text, get_products_keyboard(products, category_id))
+        if category_id == 3:
+            text = (
+                "🤖 <b>Gemini Pro</b>\n\n"
+                "<i>ℹ️ Підписка надається шляхом додавання до сімейної групи.</i>\n\n"
+                "<b>Переваги:</b>\n"
+                "🔹 У 4 рази вищі ліміти використання\n"
+                "🔹 Генерація відео, аудіоперекази\n"
+                "🔹 1000 кредитів Google Flow, доступ до Omni Flash\n"
+                "🔹 Розширений пошук Google 3 Pro з агентами\n"
+                "🔹 Доступ до платформи Google Antigravity\n"
+                "🔹 Gemini в Gmail, Документах тощо\n"
+                "🔹 5 ТБ хмарного сховища\n\n"
+                "👇 <b>Оберіть період підписки:</b>"
+            )
+        elif category_id == 5:
+            text = (
+                "📺 <b>YouTube Premium</b>\n\n"
+                "<i>ℹ️ Підписка надається шляхом додавання до сімейної групи.</i>\n\n"
+                "<b>Переваги:</b>\n"
+                "🔹 Відео без реклами\n"
+                "🔹 Офлайн перегляд\n"
+                "🔹 Фонове відтворення\n"
+                "🔹 YouTube Music Premium\n\n"
+                "👇 <b>Оберіть період підписки:</b>"
+            )
+        elif category_id == 2:
+            text = (
+                "💎 <b>Telegram Premium</b>\n\n"
+                "👇 <b>Оберіть період підписки:</b>"
+            )
+        else:
+            text = "📦 Оберіть товар:"
+            
+        await edit_or_send_photo(callback, text, get_products_keyboard(products, category_id), photo_path=photo_for_cat)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("fragpage_"))
+async def process_fragment_page(callback: CallbackQuery, state: FSMContext):
+    from states.order import OrderState
+    await state.set_state(OrderState.waiting_for_fragment_link)
+    
+    page = int(callback.data.split("_")[1])
+    text = (
+        "🎁 <b>Telegram Подарунки / NFT</b>\n"
+        "Оберіть подарунок зі списку нижче або надішліть лінк на унікальний (з Fragment).\n\n"
+        "<i>(Після запиту з вами зв'яжеться адміністратор)</i>"
+    )
+    from keyboards.inline import get_fragment_keyboard
+    await edit_or_send_photo(callback, text, get_fragment_keyboard(page), photo_path="gifts_banner.jpg")
     await callback.answer()
 
 @router.callback_query(F.data.startswith("prod_"))
@@ -169,6 +224,18 @@ async def process_product(callback: CallbackQuery):
     if product:
         prod_id, category_id, name, description, price = product
         
+        photo_for_cat = "catalog_banner.jpg"
+        if category_id == 1:
+            photo_for_cat = "stars_banner.jpg"
+        elif category_id == 2:
+            photo_for_cat = "premium_banner.jpg"
+        elif category_id == 3:
+            photo_for_cat = "gemini_banner.jpg"
+        elif category_id == 4:
+            photo_for_cat = "gifts_banner.jpg"
+        elif category_id == 5:
+            photo_for_cat = "youtube_banner.jpg"
+
         text = (
             f"🛒 <b>Товар:</b> {name}\n\n"
             f"📝 <b>Опис:</b> {description}\n\n"
@@ -178,7 +245,8 @@ async def process_product(callback: CallbackQuery):
         await edit_or_send_photo(
             callback,
             text, 
-            markup=get_product_action_keyboard(product_id, category_id)
+            markup=get_product_action_keyboard(product_id, category_id),
+            photo_path=photo_for_cat
         )
     else:
         await callback.answer("Товар не знайдено", show_alert=True)
@@ -530,21 +598,21 @@ async def process_casino_menu(callback: CallbackQuery):
     b_str = f"{balance:.2f}".rstrip('0').rstrip('.')
     if not b_str: b_str = "0"
     text = (
-        "🎰 <b>Вітаємо в Казино!</b>\n\n"
-        "Правила прості: ви робите ставку і крутите слоти.\n"
-        "Виграшні комбінації:\n"
-        "💎💎💎 = <b>x5</b> (Джекпот)\n"
-        "🍒🍒🍒 = <b>x2</b> (Великий куш)\n"
-        "🍎🍎🍎, 🍇🍇🍇, 🔔🔔🔔 = <b>x1.5</b> (Міні-виграш)\n\n"
-        f"Ваш баланс: <b>{b_str} ₴</b>\n"
-        "Оберіть суму ставки:"
+        "🎰 <b>Lummi Casino</b> — Випробуй свою вдачу!\n\n"
+        "Правила прості: робиш ставку, крутиш слоти і виграєш реальні гроші на баланс!\n\n"
+        "🏆 <b>Виграшні комбінації:</b>\n"
+        "💎💎💎 — <b>x5</b> (ДЖЕКПОТ!)\n"
+        "🍒🍒🍒 — <b>x3</b> (Великий куш)\n"
+        "🔔🔔🔔 — <b>x2</b> (Удача поруч)\n"
+        "🍎🍎🍎, 🍇🍇🍇 — <b>x1.5</b> (Легкі гроші)\n\n"
+        f"💰 <b>Твій баланс:</b> {b_str} ₴\n\n"
+        "👇 <i>Обери суму ставки і нехай щастить:</i>"
     )
     from keyboards.inline import get_casino_keyboard
-    await edit_or_send_photo(callback, text, get_casino_keyboard())
+    await edit_or_send_photo(callback, text, get_casino_keyboard(), photo_path="casino_banner.jpg")
     await callback.answer()
 
 import asyncio
-
 
 @router.callback_query(F.data.startswith("bet_"))
 async def process_casino_bet(callback: CallbackQuery, bot: Bot):
@@ -560,39 +628,68 @@ async def process_casino_bet(callback: CallbackQuery, bot: Bot):
     slots = ["🍎", "🍋", "🍒", "💎", "🔔", "🍇"]
     import random
     
-    # Animation
-    for i in range(3):
-        f1, f2, f3 = random.choice(slots), random.choice(slots), random.choice(slots)
-        try:
-            await callback.message.edit_caption(
-                caption=f"🎰 <b>Ставка: {bet} ₴</b>\n\n     [ {f1} | {f2} | {f3} ]\n\n🔄 <i>Крутимо слоти... ({3-i})</i>", 
-                parse_mode="HTML"
-            )
-        except:
-            pass
-        await asyncio.sleep(0.5)
-        
-    # Final outcome
+    # Determine Final outcome early
     rand = random.random()
     if rand < 0.02: # 2% chance
         final_slots = ["💎", "💎", "💎"]
         multiplier = 5
-        text_res = f"🎉 <b>ДЖЕКПОТ!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x5)!"
-    elif rand < 0.10: # 8% chance
+        text_res = f"🎉 <b>ДЖЕКПОТ!</b> Ви виграли <b>{bet*multiplier:.2f} ₴</b> (x5)!"
+    elif rand < 0.08: # 6% chance (8% total)
         final_slots = ["🍒", "🍒", "🍒"]
+        multiplier = 3
+        text_res = f"🎊 <b>ВЕЛИКИЙ КУШ!</b> Ви виграли <b>{bet*multiplier:.2f} ₴</b> (x3)!"
+    elif rand < 0.15: # 7% chance (15% total)
+        final_slots = ["🔔", "🔔", "🔔"]
         multiplier = 2
-        text_res = f"🎊 <b>ВИГРАШ!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x2)!"
-    elif rand < 0.35: # 25% chance
-        f = random.choice(["🍎", "🍇", "🔔"])
-        final_slots = [f, f, f]
+        text_res = f"🔥 <b>УДАЧА ПОРУЧ!</b> Ви виграли <b>{bet*multiplier:.2f} ₴</b> (x2)!"
+    elif rand < 0.35: # 20% chance (35% total)
+        f_slot = random.choice(["🍎", "🍇"])
+        final_slots = [f_slot, f_slot, f_slot]
         multiplier = 1.5
-        text_res = f"👍 <b>Непогано!</b> Ви виграли <b>{bet*multiplier} ₴</b> (x1.5)!"
+        text_res = f"👍 <b>НЕПОГАНО!</b> Ви виграли <b>{bet*multiplier:.2f} ₴</b> (x1.5)!"
     else: # 65% chance
         final_slots = [random.choice(slots), random.choice(slots), random.choice(slots)]
         while final_slots[0] == final_slots[1] == final_slots[2]:
             final_slots[2] = random.choice(slots)
         multiplier = 0
-        text_res = f"😔 На жаль, ви програли <b>{bet} ₴</b>. Спробуйте ще раз!"
+        text_res = f"😔 На жаль, ви програли <b>{bet:.2f} ₴</b>. Спробуйте ще раз!"
+
+    # Animation
+    frames = 5
+    for i in range(frames):
+        if i == 0:
+            f1, f2, f3 = random.choice(slots), random.choice(slots), random.choice(slots)
+        elif i == 1:
+            f1, f2, f3 = random.choice(slots), random.choice(slots), random.choice(slots)
+        elif i == 2:
+            f1, f2, f3 = final_slots[0], random.choice(slots), random.choice(slots)
+        elif i == 3:
+            f1, f2, f3 = final_slots[0], final_slots[1], random.choice(slots)
+        elif i == 4:
+            f1, f2, f3 = final_slots[0], final_slots[1], final_slots[2]
+
+        try:
+            msg_text = f"🎰 <b>Ставка: {bet:.2f} ₴</b>\n\n     [ {f1} | {f2} | {f3} ]\n\n"
+            if i < 4:
+                msg_text += f"🔄 <i>Крутимо слоти...</i>"
+            else:
+                msg_text += "✨ <i>Зупиняємо...</i>"
+            
+            # Use edit_or_send_photo logic for consistency or just edit caption
+            if callback.message.photo:
+                await callback.message.edit_caption(
+                    caption=msg_text, 
+                    parse_mode="HTML"
+                )
+            else:
+                await callback.message.edit_text(
+                    text=msg_text, 
+                    parse_mode="HTML"
+                )
+        except:
+            pass
+        if i < 4:
+            await asyncio.sleep(0.6)
         
     win_amount = bet * multiplier
     if win_amount > 0:
@@ -610,7 +707,10 @@ async def process_casino_bet(callback: CallbackQuery, bot: Bot):
     
     from keyboards.inline import get_casino_keyboard
     try:
-        await callback.message.edit_caption(caption=final_caption, reply_markup=get_casino_keyboard(), parse_mode="HTML")
+        if callback.message.photo:
+            await callback.message.edit_caption(caption=final_caption, reply_markup=get_casino_keyboard(), parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text=final_caption, reply_markup=get_casino_keyboard(), parse_mode="HTML")
     except:
         pass
     await callback.answer()

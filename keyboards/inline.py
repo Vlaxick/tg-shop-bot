@@ -60,32 +60,52 @@ def get_stars_keyboard(category_id: int) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="shop", style="danger"))
     return builder.as_markup()
 
-def get_fragment_keyboard() -> InlineKeyboardMarkup:
+def get_fragment_keyboard(page: int = 1) -> InlineKeyboardMarkup:
+    standard_gifts = [
+        ("💝 Серце - 12 ₴", "buy_gift_heart"),
+        ("🧸 Ведмедик - 12 ₴", "buy_gift_bear"),
+        ("🎁 Подарунок - 20 ₴", "buy_gift_box"),
+        ("🌹 Троянда - 20 ₴", "buy_gift_rose"),
+        ("🎂 Торт - 40 ₴", "buy_gift_cake"),
+        ("💐 Букет - 40 ₴", "buy_gift_bouquet"),
+        ("🍾 Шампанське - 40 ₴", "buy_gift_champagne"),
+        ("🚀 Ракета - 40 ₴", "buy_gift_rocket"),
+        ("🏆 Кубок - 80 ₴", "buy_gift_trophy"),
+        ("💍 Каблучка - 80 ₴", "buy_gift_ring"),
+        ("💎 Діамант - 80 ₴", "buy_gift_diamond")
+    ]
     builder = InlineKeyboardBuilder()
     
-    builder.row(
-        InlineKeyboardButton(text="💝 Серце - 12 ₴", callback_data="buy_gift_heart"),
-        InlineKeyboardButton(text="🧸 Ведмедик - 12 ₴", callback_data="buy_gift_bear")
-    )
-    builder.row(
-        InlineKeyboardButton(text="🎁 Подарунок - 20 ₴", callback_data="buy_gift_box"),
-        InlineKeyboardButton(text="🌹 Троянда - 20 ₴", callback_data="buy_gift_rose")
-    )
-    builder.row(
-        InlineKeyboardButton(text="🎂 Торт - 40 ₴", callback_data="buy_gift_cake"),
-        InlineKeyboardButton(text="💐 Букет - 40 ₴", callback_data="buy_gift_bouquet")
-    )
-    builder.row(
-        InlineKeyboardButton(text="🍾 Шампанське - 40 ₴", callback_data="buy_gift_champagne")
-    )
-    builder.row(
-        InlineKeyboardButton(text="🚀 Ракета - 40 ₴", callback_data="buy_gift_rocket"),
-        InlineKeyboardButton(text="🏆 Кубок - 80 ₴", callback_data="buy_gift_trophy")
-    )
-    builder.row(
-        InlineKeyboardButton(text="💍 Каблучка - 80 ₴", callback_data="buy_gift_ring"),
-        InlineKeyboardButton(text="💎 Діамант - 80 ₴", callback_data="buy_gift_diamond")
-    )
+    items_per_page = 4
+    total_pages = (len(standard_gifts) + items_per_page - 1) // items_per_page
+    
+    start_idx = (page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    current_items = standard_gifts[start_idx:end_idx]
+    
+    row = []
+    for text, callback_data in current_items:
+        row.append(InlineKeyboardButton(text=text, callback_data=callback_data))
+        if len(row) == 2:
+            builder.row(*row)
+            row = []
+    if row:
+        builder.row(*row)
+        
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"fragpage_{page-1}"))
+    else:
+        nav_row.append(InlineKeyboardButton(text="➖", callback_data="ignore"))
+        
+    nav_row.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="ignore"))
+    
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"fragpage_{page+1}"))
+    else:
+        nav_row.append(InlineKeyboardButton(text="➖", callback_data="ignore"))
+        
+    builder.row(*nav_row)
     
     builder.row(InlineKeyboardButton(text="🔗 Інший подарунок (Fragment)", url="https://fragment.com/gifts", style="success"))
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="shop", style="danger"))

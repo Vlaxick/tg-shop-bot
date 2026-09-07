@@ -18,19 +18,36 @@ from states.order import OrderState
 
 router = Router()
 
-async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None):
+def get_photo_for_category(category_id):
+    if category_id == 1:
+        return "stars_banner.jpg"
+    elif category_id == 2:
+        return "premium_banner.jpg"
+    elif category_id == 3:
+        return "gemini_banner.jpg"
+    elif category_id == 4:
+        return "gifts_banner.jpg"
+    elif category_id == 5:
+        return "youtube_banner.jpg"
+    return "catalog_banner.jpg"
+
+async def edit_or_send_photo(callback: CallbackQuery, text: str, markup=None, photo_path="banner.jpg"):
+    from aiogram.types import FSInputFile, InputMediaPhoto
     try:
         if callback.message.photo:
-            await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="HTML")
+            await callback.message.edit_media(
+                media=InputMediaPhoto(media=FSInputFile(photo_path), caption=text, parse_mode="HTML"),
+                reply_markup=markup
+            )
         else:
             await callback.message.delete()
-            await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
+            await callback.message.answer_photo(photo=FSInputFile(photo_path), caption=text, reply_markup=markup, parse_mode="HTML")
     except Exception:
+        # Fallback if media is the same and throws MessageNotModified
         try:
-            await callback.message.delete()
+            await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="HTML")
         except:
             pass
-        await callback.message.answer_photo(photo=FSInputFile("banner.jpg"), caption=text, reply_markup=markup, parse_mode="HTML")
 
 
 def calculate_stars_price(amount: int) -> int:
@@ -64,10 +81,11 @@ async def start_order_recipient_flow(message_or_callback, state: FSMContext, nam
         "👤 <b>Для кого купляємо?</b>"
     )
     
+    photo_for_cat = get_photo_for_category(category_id)
     markup = get_recipient_keyboard(category_id)
     
     if isinstance(message_or_callback, CallbackQuery):
-        await edit_or_send_photo(message_or_callback, text, markup)
+        await edit_or_send_photo(message_or_callback, text, markup, photo_path=photo_for_cat)
         await message_or_callback.answer()
     else:
         await message_or_callback.answer(text, reply_markup=markup, parse_mode="HTML")
@@ -94,7 +112,7 @@ async def process_stars_custom(callback: CallbackQuery, state: FSMContext):
 
         "🖍 <b>Введіть кількість Stars:</b>"
     )
-    await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
+    await edit_or_send_photo(callback, text, get_back_to_main_keyboard(), photo_path=get_photo_for_category(1))
     await callback.answer()
 
 @router.message(OrderState.waiting_for_stars_amount)
@@ -201,8 +219,10 @@ async def go_to_payment_method(message_or_callback, state: FSMContext, contact_i
     
     markup = get_payment_method_keyboard(price, category_id, balance)
     
+    photo_for_cat = get_photo_for_category(category_id)
+    
     if isinstance(message_or_callback, CallbackQuery):
-        await edit_or_send_photo(message_or_callback, text, markup)
+        await edit_or_send_photo(message_or_callback, text, markup, photo_path=photo_for_cat)
         await message_or_callback.answer()
     else:
         await message_or_callback.answer(text, reply_markup=markup, parse_mode="HTML")
@@ -227,12 +247,13 @@ async def process_pay_balance(callback: CallbackQuery, state: FSMContext, bot: B
     if data.get('category_id') in (3, 5):
         await state.update_data(paid_via_balance=True)
         await state.set_state(OrderState.waiting_for_email)
-        text = "✅ <b>Оплата успішна!</b>\n\nБудь ласка, надайте пошту на яку потрібно підключити підписку:"
-        await edit_or_send_photo(callback, text, None)
+        photo_for_cat = get_photo_for_category(data.get('category_id'))
+        await edit_or_send_photo(callback, text, None, photo_path=photo_for_cat)
         await callback.answer()
         return
         
-    await edit_or_send_photo(callback, "✅ <b>Оплата успішна!</b>\n\nКошти списано з балансу. Очікуйте на видачу товару.", get_back_to_main_keyboard())
+    photo_for_cat = get_photo_for_category(data.get('category_id'))
+    await edit_or_send_photo(callback, "✅ <b>Оплата успішна!</b>\n\nКошти списано з балансу. Очікуйте на видачу товару.", get_back_to_main_keyboard(), photo_path=photo_for_cat)
     await state.clear()
     
     # Notify Admin
@@ -281,7 +302,8 @@ async def process_pay_balance_partial(callback: CallbackQuery, state: FSMContext
         f"Залишилось доплатити: <b>{np_str} ₴</b>\n"
         "Оберіть спосіб доплати:"
     )
-    await edit_or_send_photo(callback, text_partial, markup)
+    photo_for_cat = get_photo_for_category(data.get('category_id'))
+    await edit_or_send_photo(callback, text_partial, markup, photo_path=photo_for_cat)
     await callback.answer()
 
 @router.callback_query(F.data == "pay_mono", OrderState.waiting_for_payment_method)
@@ -311,7 +333,8 @@ async def process_pay_mono(callback: CallbackQuery, state: FSMContext):
     )
     
     markup = get_mono_payment_keyboard(str(order_id) + "_" + order_hash, payment_url)
-    await edit_or_send_photo(callback, text, markup)
+    photo_for_cat = get_photo_for_category(data.get('category_id'))
+    await edit_or_send_photo(callback, text, markup, photo_path=photo_for_cat)
     await callback.answer()
 
 @router.callback_query(F.data == "pay_card", OrderState.waiting_for_payment_method)
@@ -339,7 +362,8 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext):
     )
     
     markup = get_card_payment_keyboard(str(order_id) + "_" + order_hash)
-    await edit_or_send_photo(callback, text, markup)
+    photo_for_cat = get_photo_for_category(data.get('category_id'))
+    await edit_or_send_photo(callback, text, markup, photo_path=photo_for_cat)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("paid_"), OrderState.waiting_for_payment_proof)
@@ -511,7 +535,7 @@ async def process_fragment_selection(callback: CallbackQuery, state: FSMContext)
     )
     
     from keyboards.inline import get_back_to_main_keyboard
-    await edit_or_send_photo(callback, text, get_back_to_main_keyboard())
+    await edit_or_send_photo(callback, text, get_back_to_main_keyboard(), photo_path=get_photo_for_category(4))
     await state.set_state(OrderState.waiting_for_fragment_link)
     await state.update_data(fragment_type=item_type)
     await callback.answer()
